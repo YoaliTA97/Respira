@@ -144,6 +144,7 @@ export default function Perfil() {
         </TechTag>
 
         <TechTag k="acceso">
+          <div id="seguridad" className="scroll-mt-20" />
           <Tarjeta titulo="Seguridad de tu cuenta">
             <p className="text-sm text-muted">Entras con tu teléfono y contraseña. Tras 5 intentos fallidos la cuenta se bloquea unos minutos.</p>
             <div className="grid gap-2">

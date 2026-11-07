@@ -5,6 +5,7 @@ import { useState } from "react";
 import { SIDECU } from "@/lib/catalogos";
 import { useData } from "@/lib/db";
 import { FichaEmergencia } from "./FichaEmergencia";
+import { Icono } from "./Iconos";
 import { Chip, Modal, btnDanger, btnSecondary } from "./ui";
 
 const MOTIVOS = ["Necesito ayuda ya", "Se cayó", "No responde", "Le falta el aire", "Dolor de pecho", "Sangrado", "Está muy confundida"];
@@ -79,13 +80,13 @@ export function BotonPanico() {
             >
               Enviar alerta a la familia
             </button>
-            <a href="tel:911" className={btnSecondary}>Llamar al 911</a>
+            <a href="tel:911" className={btnSecondary}><Icono n="telefono" />Llamar al 911</a>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
             <p className="text-sm text-ink-2">Avisamos a {otros.join(", ") || "la familia"}. Mientras llegan:</p>
-            <a href="tel:911" className={`${btnDanger} min-h-[52px]`}>Llamar al 911</a>
-            <a href={SIDECU.url} target="_blank" rel="noopener noreferrer" className={btnSecondary}>Abrir {SIDECU.nombre}: centros de cuidado</a>
+            <a href="tel:911" className={`${btnDanger} min-h-[52px]`}><Icono n="telefono" />Llamar al 911</a>
+            <a href={SIDECU.url} target="_blank" rel="noopener noreferrer" className={btnSecondary}><Icono n="externo" />Abrir {SIDECU.nombre}: centros de cuidado</a>
             <Link href="/alertas" onClick={cerrar} className={btnSecondary}>Ver la alerta y los centros cercanos</Link>
             <FichaEmergencia />
           </div>

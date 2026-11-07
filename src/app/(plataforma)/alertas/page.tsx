@@ -5,6 +5,7 @@ import { AVISOS, SIDECU } from "@/lib/catalogos";
 import { Centros } from "@/components/Centros";
 import { FichaEmergencia } from "@/components/FichaEmergencia";
 import { MensajesAlerta } from "@/components/MensajesAlerta";
+import { Icono } from "@/components/Iconos";
 import { RequiereFamilia } from "@/components/RequiereFamilia";
 import { TechTag } from "@/components/TechTag";
 import { Encabezado, NivelPill, Pill, Tarjeta, Vacio, btnDanger, btnPrimary, btnSecondary } from "@/components/ui";
@@ -18,7 +19,7 @@ function Alertas() {
 
   return (
     <>
-      <Encabezado sub="Comunicación: alertas médicas, avisos por WhatsApp y centros cercanos" titulo="Alertas y centros" acciones={<a href="tel:911" className={btnDanger}>Llamar al 911</a>} />
+      <Encabezado sub="Comunicación: alertas médicas, avisos por WhatsApp y centros cercanos" titulo="Alertas y centros" acciones={<a href="tel:911" className={btnDanger}><Icono n="telefono" />Llamar al 911</a>} />
 
       <p className="mb-3 text-xs text-muted">{AVISOS.noReemplaza}</p>
       <TechTag k="mi-voz" className="mb-4">
@@ -45,7 +46,7 @@ function Alertas() {
                   {a.atendidaEn && <span className="text-xs text-muted">Primera respuesta a las {a.atendidaEn.slice(11, 16)}</span>}
                   {a.estado === "activa" && (
                     <div className="mt-1 flex flex-wrap gap-2">
-                      <a href={SIDECU.url} target="_blank" rel="noopener noreferrer" className={btnPrimary}>Abrir {SIDECU.nombre}</a>
+                      <a href={SIDECU.url} target="_blank" rel="noopener noreferrer" className={btnPrimary}><Icono n="externo" />Abrir {SIDECU.nombre}</a>
                       <button type="button" className={btnSecondary} onClick={() => atenderAlerta(a.id)}>Marcar como atendida</button>
                     </div>
                   )}
@@ -76,7 +77,7 @@ function Alertas() {
             <span className="text-lg font-semibold">{SIDECU.nombre} · {SIDECU.nombreLargo}</span>
             <span className="text-sm text-ink-2">El mapa oficial de centros públicos de cuidado de la {SIDECU.institucion}. La alerta por WhatsApp lleva a la familia ahí para ubicar el más cercano y decidir a cuál llevar a {paciente.nombre}.</span>
           </div>
-          <a href={SIDECU.url} target="_blank" rel="noopener noreferrer" className={btnPrimary}>Abrir {SIDECU.nombre}</a>
+          <a href={SIDECU.url} target="_blank" rel="noopener noreferrer" className={btnPrimary}><Icono n="externo" />Abrir {SIDECU.nombre}</a>
         </section>
       </TechTag>
 

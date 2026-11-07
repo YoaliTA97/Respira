@@ -8,6 +8,7 @@ import { Estrellas } from "./Graficas";
 import { useData } from "@/lib/db";
 import { fechaISO } from "@/lib/seed";
 import { FichaEmergencia } from "./FichaEmergencia";
+import { Icono } from "./Iconos";
 import { Avatar, btnDanger, btnSecondary } from "./ui";
 
 const LS_VISTAS = "respira-graves-vistas";
@@ -54,7 +55,7 @@ export function AlertaGrave() {
         <span className="text-sm font-semibold uppercase tracking-[0.1em] text-white/80">Alerta grave · {a.fechaHora.slice(11, 16)}</span>
         <h1 className="text-3xl font-semibold leading-tight md:text-4xl">{a.titulo}</h1>
         <p className="text-lg text-white/90">{a.motivo}</p>
-        <a href="tel:911" className="flex min-h-[64px] items-center justify-center rounded-2xl bg-white text-xl font-bold text-red-ink shadow-lg">Llamar al 911</a>
+        <a href="tel:911" className="flex min-h-[64px] items-center justify-center gap-3 rounded-2xl bg-white text-xl font-bold text-red-ink shadow-lg"><Icono n="telefono" size={24} />Llamar al 911</a>
         <div className="grid gap-2 md:grid-cols-2">
           <span className="rounded-2xl bg-white/10 p-3 text-sm">
             {a.whatsapp ? `WhatsApp ${a.whatsapp.modo === "real" ? "enviado" : "enviado (simulado)"} a ${a.whatsapp.enviadoA.join(", ")}` : "Avisando a la familia por WhatsApp…"}

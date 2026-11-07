@@ -6,6 +6,7 @@ import { useData } from "@/lib/db";
 import { DIAS_LARGOS, META_HORAS_RELEVO, MINUTOS_A_TIEMPO, ZARIT_CORTE, nivelZarit, nombreCondicion } from "@/lib/catalogos";
 import { adherencia, cargaSemana, coberturaSemana, cumplimientoSemana, fechaDe, horasCuidado, horasDisponibles, metricasEspacio, minutosAlertas, puedeVerHistorial, rangoRelevo, relevoPrincipalPorSemana, serieSigno, transicionFamilia } from "@/lib/calculos";
 import { Columnas, Linea, Medidor, Segmentadas } from "@/components/Graficas";
+import { Icono } from "@/components/Iconos";
 import { diaSemana, fechaISO } from "@/lib/seed";
 import { ROL_TEXTO } from "@/lib/types";
 import { RequiereFamilia } from "@/components/RequiereFamilia";
@@ -63,9 +64,9 @@ function Resumen() {
         titulo={familia.nombre}
         acciones={
           <>
-            <Link href="/valoracion" className={btnPrimary}>Valorar a {paciente.nombre}</Link>
-            <Link href="/chat" className={btnSecondary}>Nota de voz</Link>
-            <Link href="/relevos" className={btnSecondary}>Relevos</Link>
+            <Link href="/valoracion" className={btnPrimary}><Icono n="checklist" />Valorar a {paciente.nombre}</Link>
+            <Link href="/chat" className={btnSecondary}><Icono n="microfono" />Nota de voz</Link>
+            <Link href="/relevos" className={btnSecondary}><Icono n="calendario" />Relevos</Link>
           </>
         }
       />
@@ -79,7 +80,7 @@ function Resumen() {
               <span className="text-sm text-ink-2">{alertas[alertas.length - 1].motivo}</span>
             </div>
             <div className="flex gap-2">
-              <a href="tel:911" className={btnDanger}>Llamar al 911</a>
+              <a href="tel:911" className={btnDanger}><Icono n="telefono" />Llamar al 911</a>
               <Link href="/alertas" className={btnSecondary}>Responder y ver centros</Link>
             </div>
           </section>

@@ -75,7 +75,7 @@ export function Campana() {
         {nuevas.length > 0 && <span className="absolute -right-1 -top-1 min-w-[20px] rounded-full bg-red-ink px-1 text-center text-xs font-semibold leading-5 text-white">{nuevas.length}</span>}
       </button>
       {abierto && (
-        <div className="glass absolute right-0 top-full z-50 mt-2 flex max-h-[70vh] w-[min(380px,calc(100vw-24px))] flex-col overflow-y-auto rounded-2xl p-3 shadow-xl">
+        <div className="absolute right-0 top-full z-50 mt-2 flex max-h-[70vh] border border-line bg-white w-[min(380px,calc(100vw-24px))] flex-col overflow-y-auto rounded-2xl p-3 shadow-xl">
           <div className="mb-1 flex items-center justify-between gap-2 px-1">
             <span className="text-sm font-semibold">Notificaciones</span>
             {nuevas.length > 0 && <button type="button" className="text-xs text-muted underline" onClick={() => marcarNotificaciones(lista.map((n) => n.id))}>Marcar como vistas</button>}

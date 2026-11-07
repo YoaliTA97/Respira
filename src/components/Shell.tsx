@@ -10,9 +10,9 @@ import { ROL_TEXTO } from "@/lib/types";
 import { AlertaGrave } from "./AlertaGrave";
 import { BotonPanico } from "./BotonPanico";
 import { Campana } from "./Notificaciones";
+import { AccionesCuenta, MenuCuenta } from "./MenuCuenta";
 import { AvisoTerminos } from "./Terminos";
 import { Logo } from "./Logo";
-import { Avatar } from "./ui";
 
 type Item = { href: string; t: string; icon: React.ReactNode; badge?: number };
 
@@ -108,7 +108,7 @@ function Icono({ d }: { d: React.ReactNode }) {
 }
 
 export function Shell({ children }: { children: React.ReactNode }) {
-  const { db, ahora, usuario, familia, membresia, paciente, misFamilias, invitaciones, capaTecnica, setCapaTecnica, cerrarSesion, cambiarFamilia } = useData();
+  const { db, ahora, usuario, familia, membresia, paciente, misFamilias, invitaciones, cambiarFamilia } = useData();
   const pathname = usePathname();
   const router = useRouter();
   const [menu, setMenu] = useState(false);
@@ -174,10 +174,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
   };
   const seccionActual = SECCION_DE_RUTA[pathname];
   const permiso = seccionActual ? acceso(seccionActual, usuario, membresia) : { ok: true, motivo: "" };
-  const salir = () => {
-    cerrarSesion();
-    router.replace("/login");
-  };
 
   const enlace = (it: Item) => (
     <Link
@@ -253,27 +249,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
   );
 
   const pie = (
-    <div className="flex flex-col gap-3 border-t border-line pt-4">
-      <div className="flex items-center gap-2.5 px-1">
-        <Avatar nombre={usuario.nombre} tono={usuario.tono} size={32} />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-sm font-semibold">{usuario.nombre}</span>
-          <span className="truncate text-xs text-muted">{usuario.telefono}</span>
-        </div>
-      </div>
-      <label className="flex cursor-pointer items-center justify-between gap-2 px-1 text-sm">
-        <span className={capaTecnica ? "font-medium text-tech" : "text-muted"}>Capa técnica</span>
-        <input type="checkbox" role="switch" checked={capaTecnica} onChange={(e) => setCapaTecnica(e.target.checked)} className="h-5 w-9 accent-[#9c2f77]" />
-      </label>
-      <div className="flex gap-2 px-1 text-sm">
-        <Link href="/tecnico" className="text-muted hover:text-ink">Mapa técnico</Link>
-        <span className="text-line">·</span>
-        <button type="button" onClick={salir} className="text-muted hover:text-ink">Cerrar sesión</button>
-        <span className="text-line">·</span>
-        <Link href="/guion" className="text-muted hover:text-ink">Guion</Link>
-        <span className="text-line">·</span>
-        <Link href="/respaldo" className="text-muted hover:text-ink">Límites</Link>
-      </div>
+    <div className="border-t border-line pt-3">
+      <MenuCuenta arriba completo />
     </div>
   );
 
@@ -307,6 +284,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </p>
           <div className="flex items-center gap-2">
             <Campana />
+            <div className="hidden md:block">
+              <MenuCuenta />
+            </div>
             {familia && (
               <span className="hidden rounded-full border border-line bg-white px-3 py-1 text-xs font-medium sm:inline-flex">
                 {deTurno ? `De turno: ${deTurno}` : "Sin turno ahora"}
@@ -364,7 +344,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <div className="fixed inset-0 z-50 bg-black/30 md:hidden" onClick={() => setMenu(false)}>
           <div className="absolute inset-y-0 right-0 flex w-[296px] flex-col justify-between overflow-y-auto bg-[#f3f1ea] p-4" onClick={(e) => e.stopPropagation()}>
             {navLateral}
-            {pie}
+            <div className="mt-5 border-t border-line pt-3">
+              <AccionesCuenta alElegir={() => setMenu(false)} />
+            </div>
           </div>
         </div>
       )}
