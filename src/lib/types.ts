@@ -24,19 +24,23 @@ export type Usuario = {
   tono: Tono;
   roles: RolInteres[];
   experiencia?: string[]; // habilidades que la persona declara (sin verificar); las verificadas salen de la capacitación
+  equipo?: string[]; // equipo médico que puede prestar a otras familias (id de EQUIPOS)
+  fuente?: "respira" | "sidecu"; // sidecu = persona identificada por convenio con SIDECU
   disponibilidad: Disponibilidad;
   ofreceAyuda: { activo: boolean; radioKm: number; modalidades: ("intercambio de horas" | "pago" | "programa de apoyo")[]; tarifaHora: number };
   saldoHoras: number; // banco de horas: + horas que le deben
   creadoEn: string;
 };
 
-export type RolFamilia = "coordinacion" | "cuidado" | "apoyo" | "avisos";
+// "persona" = la persona cuidada con acceso propio (su voz, sus decisiones y permisos).
+export type RolFamilia = "coordinacion" | "cuidado" | "apoyo" | "avisos" | "persona";
 
 export const ROL_TEXTO: Record<RolFamilia, { t: string; d: string }> = {
   coordinacion: { t: "Coordinación", d: "Administra el espacio, invita integrantes y asigna relevos" },
   cuidado: { t: "Cuidado", d: "Cubre relevos, registra signos y medicación" },
   apoyo: { t: "Apoyo", d: "Cubre relevos ocasionales e intercambios" },
   avisos: { t: "Solo avisos", d: "Recibe alertas y ve el estado, sin registrar" },
+  persona: { t: "Persona cuidada", d: "Su voz: rutinas, decisiones de salud y permisos sobre sus datos" },
 };
 
 export type Familia = {
@@ -47,6 +51,7 @@ export type Familia = {
   creadaPor: Id;
   creadaEn: string;
   consentimiento: { registro: boolean; alertasWhatsApp: boolean; indicadores: boolean; fecha: string };
+  codigo?: string; // código de unión: va en el QR para entrar al espacio
 };
 
 export type Membresia = {
@@ -80,12 +85,55 @@ export type Paciente = {
   sexo: "mujer" | "hombre";
   condiciones: string[]; // id del catálogo (CondicionId) o el nombre que da de alta la familia
   alergias?: string[];
+  historia?: HistoriaClinica;
+  servicios?: ServiciosSalud;
+  usuarioId?: Id; // su propio perfil, si tiene acceso
+  voz?: VozPersona;
   evento: { tipo: "caida"; fecha: string; descripcion: string; lesion: string } | null;
   movilidad: "independiente" | "con apoyo" | "en cama";
   signos: SignoId[];
   umbrales: Umbrales;
   notas: string;
 };
+
+// Historia clínica y uso de servicios de salud: se registran en la valoración en checklist.
+export type HistoriaClinica = {
+  antecedentes: string[];
+  dispositivos: string[];
+  notas: string;
+  actualizada: string;
+  porUsuarioId: Id;
+};
+
+export type ServiciosSalud = {
+  afiliacion: string[];
+  unidad: string;
+  medico: string;
+  ultimaConsulta: string;
+  urgencias3m: boolean | null;
+  citaPendiente: boolean | null;
+  recetaVigente: boolean | null;
+  medicamentosDe: string;
+  actualizada: string;
+  porUsuarioId: Id;
+};
+
+// "Mi voz": la persona cuidada como agente activo.
+export type VozPersona = {
+  palabras?: { texto: string; audio?: string; fecha: string; porUsuarioId: Id };
+  gustos: string[];
+  rutinas: string[];
+  noQuiero: string[];
+  permisos: Record<Id, boolean>; // quién puede ver su historial; sin registro = sí
+  decisiones?: { clinica: string; acompanante: string; voluntadAnticipada: boolean; documento?: string; notas: string; fecha: string };
+  metas: { id: Id; texto: string; hechas: string[] }[];
+};
+
+// "¿Cómo me siento hoy?": lo reporta la propia persona cuidada.
+export type Sentir = { id: Id; familiaId: Id; fechaHora: string; dolor: number; animo: string; sueno: string; nota: string; porUsuarioId: Id };
+
+// "Lo que yo aporto": horas de la persona mayor que cuentan en el banco de tiempo.
+export type Aporte = { id: Id; familiaId: Id; usuarioId: Id; actividad: string; horas: number; fecha: string };
 
 export type Medicamento = { id: Id; familiaId: Id; nombre: string; dosis: string; horarios: string[]; indicaciones: string };
 
@@ -108,7 +156,8 @@ export type LecturaSignos = {
   dolor?: number;
   conciencia?: "alerta" | "confundida" | "no responde";
   senales: string[];
-  origen: "nota de voz" | "formulario";
+  sintomas?: string[]; // síntomas del checklist que no son señales de alarma
+  origen: "nota de voz" | "formulario" | "valoración";
   nivel: Nivel;
 };
 
@@ -171,8 +220,51 @@ export type Alerta = {
   trifecta: boolean;
   estado: "activa" | "atendida";
   centroElegido?: string;
+  atendidaEn?: string; // primera respuesta o atención: mide si se atendió a tiempo
+  respuestas?: { porUsuarioId: Id; texto: string; fechaHora: string }[];
+  origen?: "reporte" | "panico";
+  porUsuarioId?: Id;
   whatsapp?: { enviadoA: string[]; modo: "real" | "simulado"; texto: string };
 };
+
+// Equipo médico de la familia: lo que tienen, lo que les falta y de dónde viene.
+export type Equipo = {
+  id: Id;
+  familiaId: Id;
+  tipo: string; // id de EQUIPOS
+  estado: "tenemos" | "necesitamos" | "prestado" | "rentado";
+  de?: string; // quién lo prestó o qué aliado lo renta
+  desde?: string;
+};
+
+export type Prestamo = {
+  id: Id;
+  familiaId: Id;
+  tipo: string;
+  aUsuarioId: Id; // quien presta
+  deUsuarioId: Id; // quien lo pide
+  estado: "enviada" | "aceptada" | "rechazada";
+  creadaEn: string;
+};
+
+// Evidencia de seguimiento: respalda lo que se registra (foto de la lectura, de la herida, de la
+// receta o de la toma) y otra persona de la familia puede confirmarla. Sirve para la trayectoria
+// y la certificación de quien cuida.
+export type Evidencia = {
+  id: Id;
+  familiaId: Id;
+  tipo: "lectura" | "herida" | "medicamento" | "receta" | "relevo" | "otro";
+  descripcion: string;
+  foto?: string; // imagen reducida (data URL); en el MVP va a almacenamiento de Supabase
+  lecturaId?: Id;
+  porUsuarioId: Id;
+  fechaHora: string;
+  confirmadaPor?: Id;
+  confirmadaEn?: string;
+};
+
+// Escala de sobrecarga de Zarit (versión abreviada de 7 preguntas) que responde quien cuida.
+export type Zarit = { id: Id; usuarioId: Id; fecha: string; respuestas: number[]; puntaje: number };
 
 export type ProgresoTutorial = { tutorialId: string; usuarioId: Id; completado: boolean; fecha: string; practicas: number };
 
@@ -194,4 +286,11 @@ export type DB = {
   alertas: Alerta[];
   progreso: ProgresoTutorial[];
   certificaciones: Certificacion[];
+  equipos: Equipo[];
+  prestamos: Prestamo[];
+  videosGuia: Record<string, string>;
+  evidencias: Evidencia[];
+  zarit: Zarit[];
+  sentires: Sentir[];
+  aportes: Aporte[]; // id de guía médica → enlace del video
 };

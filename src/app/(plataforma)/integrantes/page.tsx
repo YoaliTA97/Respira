@@ -6,17 +6,20 @@ import { DIAS } from "@/lib/catalogos";
 import { fechaISO } from "@/lib/seed";
 import { habilidades, horasCuidado, horasDisponibles, relevoActual } from "@/lib/calculos";
 import { ROL_TEXTO, type RolFamilia } from "@/lib/types";
+import Link from "next/link";
 import { InvitarPersona } from "@/components/InvitarPersona";
+import { QrFamilia, enlaceUnion } from "@/components/QrFamilia";
 import { MapaNodos, type Nodo } from "@/components/MapaNodos";
 import { RequiereFamilia } from "@/components/RequiereFamilia";
 import { TechTag } from "@/components/TechTag";
-import { Avatar, Encabezado, Pill, Tarjeta, input, label } from "@/components/ui";
+import { Avatar, Encabezado, Pill, Tarjeta, btnSecondary, input, label } from "@/components/ui";
 
 const ROLES: RolFamilia[] = ["coordinacion", "cuidado", "apoyo", "avisos"];
 
 function Integrantes() {
   const { db, ahora, usuario, familia, puede, cambiarRol, setPrincipal, invitar } = useData();
   const [sel, setSel] = useState(usuario?.id ?? "");
+  const [proyectar, setProyectar] = useState(false);
   if (!familia || !usuario) return null;
 
   const todos = db.membresias.filter((m) => m.familiaId === familia.id).map((m) => ({ m, u: db.usuarios.find((x) => x.id === m.usuarioId)! })).filter((x) => x.u);
@@ -58,6 +61,10 @@ function Integrantes() {
                   <div className="flex flex-col">
                     <span className="font-semibold">{elegido.u.nombre}{elegido.u.id === usuario.id ? " (tú)" : ""}</span>
                     <span className="text-sm text-muted">{elegido.m.parentesco} · {elegido.m.estado === "invitada" ? "invitación pendiente" : ROL_TEXTO[elegido.m.rol].t}</span>
+                    <span className="flex flex-wrap gap-x-3 text-xs">
+                      {elegido.m.rol !== "persona" && <Link href={`/cv?u=${elegido.u.id}`} className="font-semibold text-primario underline">Ver CV de cuidado</Link>}
+                      {elegido.u.id !== usuario.id && familia.codigo && <a href={enlaceUnion(familia.codigo, elegido.u.id)} target="_blank" rel="noopener" className="font-semibold text-primario underline">Abrir como {elegido.u.nombre.split(" ")[0]} (simulación)</a>}
+                    </span>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-center">
@@ -125,9 +132,35 @@ function Integrantes() {
         <TechTag k="membresias" className="mt-4">
           <Tarjeta titulo="Agregar a alguien al espacio">
             <p className="text-sm text-muted">Solo quien coordina puede agregar personas. Si ya usan Respira se vincula su perfil; nadie entra al espacio sin aceptar la invitación.</p>
-            <InvitarPersona excluirIds={todos.map((x) => x.u.id)} onAgregar={invitar} />
+            <InvitarPersona excluirIds={todos.map((x) => x.u.id)} onAgregar={invitar} simulacion />
           </Tarjeta>
         </TechTag>
+      )}
+
+      {admin && familia.codigo && (
+        <TechTag k="union-qr" className="mt-4">
+          <Tarjeta titulo="Unirse con QR" accion={<button type="button" className="text-sm font-medium text-muted" onClick={() => setProyectar(true)}>Proyectar en pantalla</button>}>
+            <div className="flex flex-wrap items-center gap-5">
+              <QrFamilia codigo={familia.codigo} tamano={168} />
+              <div className="flex max-w-md flex-col gap-2 text-sm">
+                <span>Código de la familia: <span className="font-mono text-lg font-semibold tracking-wider">{familia.codigo}</span></span>
+                <span className="text-ink-2">Quien lo escanea elige su perfil o se registra, y entra al espacio. Para la presentación: cada integrante entra desde su teléfono.</span>
+                <span className="text-xs text-muted">En la demo cada teléfono guarda su propia copia de los datos (empieza con la familia de ejemplo); con backend todos verían lo mismo en tiempo real.</span>
+                <button type="button" className={`${btnSecondary} self-start`} onClick={() => navigator.clipboard?.writeText(enlaceUnion(familia.codigo!))}>Copiar enlace</button>
+              </div>
+            </div>
+          </Tarjeta>
+        </TechTag>
+      )}
+
+      {proyectar && familia.codigo && (
+        <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-5 bg-white p-6 text-center" onClick={() => setProyectar(false)}>
+          <span className="text-sm font-semibold uppercase tracking-[0.08em] text-muted">Únete a</span>
+          <h2 className="text-4xl font-semibold tracking-tight">{familia.nombre}</h2>
+          <QrFamilia codigo={familia.codigo} tamano={Math.min(420, typeof window !== "undefined" ? window.innerHeight * 0.55 : 420)} />
+          <p className="text-lg">Escanea con la cámara · código <span className="font-mono font-semibold">{familia.codigo}</span></p>
+          <span className="text-sm text-muted">Toca para cerrar</span>
+        </div>
       )}
     </>
   );

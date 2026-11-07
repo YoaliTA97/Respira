@@ -26,21 +26,51 @@ Con Node 20.9 o más reciente. Las variables de entorno son opcionales. Sin ella
 
 ## Recorrido
 
-1. `/login` → entra como **Rosa** (coordina el espacio de la familia Hernández). El código de acceso de la demo es `123456`.
-2. **Inicio**: su perfil, sus espacios y sus próximos relevos.
-3. **Resumen** del espacio: estado de Lucía, cobertura, medicación y quién cuidó.
-4. **Lucía**: condición médica con etiquetas propias, signos a vigilar, alergias, umbrales y medicación.
-5. **Chat y reportes** → ejemplo "Trifecta de alerta". Sale una alerta roja, el aviso por WhatsApp y los centros cercanos.
-6. **Relevos**: semana de turnos, el sábado sin cubrir, intercambio de horas o búsqueda en la red por radio.
-7. **Integrantes**: mapa de nodos y alta de personas. Si ya tienen perfil, se vinculan con su teléfono.
-8. Abre otra pestaña como **Jorge** o **Lupita** para aceptar intercambios, invitaciones o solicitudes de la red.
-9. `/registro` y **Crear espacio**: alta de una familia nueva con el ejemplo de caída y diabetes.
+Abre **`/guion`**: son 8 pasos para unos 3 minutos. Cada botón entra con la persona indicada y abre la pantalla, con datos de ejemplo ya cargados. Los formularios tienen botones de **Llenar con ejemplo** para no capturar en vivo.
 
-Activa **Capa técnica** en la barra lateral para ver, sobre cada elemento, qué lo respalda. `/tecnico` muestra el mapa completo: qué opera, qué opera si se configura y qué es simulado.
+Qué incluye la app:
+
+- **Resumen de la familia.** Indicadores de 30 días:
+  - horas de relevo al mes;
+  - sobrecarga con la escala de Zarit abreviada;
+  - alertas atendidas a tiempo, contadas por la primera respuesta;
+  - cuidadoras certificadas con ingreso.
+- **Integrantes.**
+  - Mapa de nodos.
+  - Alta por teléfono: si la persona ya tiene perfil, se vincula.
+  - QR para unirse al espacio, con código de familia.
+  - En la simulación, las invitaciones se aceptan solas.
+- **Valoración en checklist:**
+  - biométricos con foto de evidencia;
+  - síntomas;
+  - estado de conciencia guiado;
+  - historia clínica;
+  - uso de servicios de salud;
+  - resultado con las reglas de alarma.
+- **Voz de la persona cuidada (Mi voz).**
+  - Su perfil en sus palabras, por nota de voz.
+  - Cómo se siente hoy.
+  - Decisiones de salud y voluntad anticipada.
+  - Quién ve su historial.
+  - Metas de autonomía.
+  - Sus horas en el banco de tiempo.
+- **Alertas.**
+  - Trifecta y botón de pánico.
+  - WhatsApp con el enlace a SIDECU.
+  - Ficha de emergencia.
+  - Mensajes dentro de la alerta y reenvío por WhatsApp desde el teléfono (wa.me).
+- **Red por radio.** Une la red de Respira con la base de SIDECU (personas y centros).
+- **Equipo médico.** Préstamo entre perfiles y renta con aliados.
+- **Seguimiento y evidencia.** Bitácora, fotos y confirmación por otro integrante.
+- **Capacitación.** Tutoriales, guías del médico en video (el enlace se carga cuando lo entregue el médico aliado) y certificaciones.
+- **CV de cuidado.** Habilidades, evidencia, certificaciones e ingreso; se descarga en PDF.
+- **Accesos según el rol.** El menú solo muestra lo que corresponde a los roles del perfil y del espacio.
+
+Activa **Capa técnica** en la barra lateral para ver qué respalda cada elemento. `/tecnico` muestra el mapa completo.
 
 ## Límites de la demo
 
-- Los datos viven en el navegador (`localStorage`). Cada visitante tiene su propia copia, y las pestañas del mismo navegador se sincronizan. Para varios teléfonos hace falta el backend (Supabase con políticas por membresía).
+- Los datos viven en el navegador (`localStorage`): sobreviven a recargar, cerrar sesión o cerrar la pestaña, y la última sesión se recuerda. Al publicar una versión nueva se renueva solo la familia de ejemplo; lo creado se conserva. Cada teléfono tiene su propia copia: para que varios compartan la misma familia en tiempo real hace falta el backend (Supabase con políticas por membresía).
 - El acceso por código y la aprobación de certificaciones están simulados. Los videos de tutoriales todavía no existen.
 
 ## Estructura

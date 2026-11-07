@@ -72,9 +72,9 @@ export const TECH = {
     ahora: "Operando", detalleAhora: "Propuesta y aceptación entre integrantes con saldo de horas; el pago monetario se registra, no se cobra.",
   },
   "red-externa": {
-    titulo: "Relevo externo por radio", seccion: "Relevos", modulos: "M5 · M11 Directorio", datos: "Externo, SolicitudExterna",
-    servicio: "GET /externos?radio= (PostGIS ST_DWithin)", integracion: "Mapa con OpenStreetMap",
-    ahora: "Operando", detalleAhora: "Distancia y disponibilidad calculadas sobre perfiles de ejemplo; la persona acepta desde su cuenta (entra como Lupita, Chela o Teresa).",
+    titulo: "Apoyo por radio: red Respira + base SIDECU", seccion: "Relevos", modulos: "M5 · M11 Directorio", datos: "Usuario (fuente respira | sidecu), centros, SolicitudRed",
+    servicio: "GET /red?radio= (PostGIS ST_DWithin) que une perfiles Respira y la base SIDECU", integracion: "SIDECU (Secretaría de las Mujeres y DIF) por convenio; mapa con OpenStreetMap",
+    ahora: "Simulado", detalleAhora: "El radio y la disponibilidad se calculan de verdad. SIDECU hoy publica centros; las personas marcadas SIDECU son de ejemplo hasta el convenio, y los centros salen del DENUE.",
   },
   chat: {
     titulo: "Chat de la red", seccion: "Red de cuidado", modulos: "M7 Comunicación", datos: "Mensaje",
@@ -99,12 +99,12 @@ export const TECH = {
   "whatsapp-alerta": {
     titulo: "Alerta por WhatsApp a familiares principales", seccion: "Comunicación", modulos: "M6 Alertas", datos: "Alerta, destinatarios",
     servicio: "POST /api/whatsapp", integracion: "API de Twilio (sandbox o número aprobado)",
-    ahora: "Operando si se configura", detalleAhora: "Envío real con TWILIO_*; sin configurar queda registrado como simulado.",
+    ahora: "Operando si se configura", detalleAhora: "Envío automático real con TWILIO_*. Sin configurar, cada integrante responde en la alerta y puede reenviar por WhatsApp desde su teléfono (enlace wa.me, sin API).",
   },
   centros: {
     titulo: "Mapa de centros de cuidado cercanos", seccion: "Comunicación", modulos: "M11 Directorio", datos: "Centros (DENUE sector 62)",
-    servicio: "Página pública /centros enlazada desde la alerta", integracion: "INEGI DENUE; SIDECU por integrar",
-    ahora: "Operando", detalleAhora: "Datos reales del DENUE en Coyoacán; SIDECU pendiente de definir.",
+    servicio: "La alerta redirige a SIDECU; /centros muestra los 5 más cercanos como vista a futuro", integracion: "SIDECU (cuidados.mujeres.gob.mx) · INEGI DENUE",
+    ahora: "Operando", detalleAhora: "Redirección real al sitio de SIDECU; la lista de cercanos usa datos reales del DENUE en Coyoacán.",
   },
   medicacion: {
     titulo: "Medicación y tomas", seccion: "Paciente", modulos: "M3 Plan de cuidado", datos: "Medicamento, Toma",
@@ -135,6 +135,61 @@ export const TECH = {
     titulo: "Carga de cuidado por persona", seccion: "Hoy", modulos: "M12 Analítica", datos: "Horas por integrante y género",
     servicio: "Vista agregada", integracion: "Referencia ENUT 2024",
     ahora: "Operando", detalleAhora: "Calculado de los relevos cubiertos de los últimos 7 días.",
+  },
+  "boton-panico": {
+    titulo: "Botón de pánico", seccion: "Comunicación", modulos: "M6 Alertas", datos: "Alerta (origen pánico), destinatarios",
+    servicio: "POST /alertas + POST /api/whatsapp a toda la familia", integracion: "Twilio WhatsApp · SIDECU · 911",
+    ahora: "Operando si se configura", detalleAhora: "La alerta, el chat y el aviso en la app operan; el WhatsApp sale real con TWILIO_*.",
+  },
+  valoracion: {
+    titulo: "Valoración en checklist", seccion: "Paciente", modulos: "M2 Expediente · M4 Bitácora", datos: "LecturaSignos (origen valoración), síntomas, conciencia",
+    servicio: "Mismas reglas de alarma que la nota de voz", integracion: "Asistente con Claude (opcional)",
+    ahora: "Operando", detalleAhora: "Biométricos, síntomas y conciencia pasan por las reglas; la trifecta dispara la alerta.",
+  },
+  "historia-clinica": {
+    titulo: "Historia clínica y uso de servicios de salud", seccion: "Paciente", modulos: "M2 Expediente", datos: "Paciente.historia, Paciente.servicios",
+    servicio: "PATCH /pacientes", integracion: "Expediente de la unidad de salud (fase posterior)",
+    ahora: "Operando", detalleAhora: "Se captura en la valoración y se muestra en la ficha de la persona cuidada.",
+  },
+  "guias-medicas": {
+    titulo: "Guías del médico en video", seccion: "Capacitación", modulos: "M9 Capacitación", datos: "Guía, enlace del video",
+    servicio: "Catálogo de guías + reproductor", integracion: "Médico aliado; YouTube, Vimeo o almacenamiento propio",
+    ahora: "Simulado", detalleAhora: "Los puntos clave están; el video se carga con un enlace cuando lo entregue el médico aliado.",
+  },
+  evidencia: {
+    titulo: "Evidencia de seguimiento", seccion: "Paciente", modulos: "M4 Bitácora · M10 Certificación", datos: "Evidencia (foto, quién, cuándo, confirmación)",
+    servicio: "POST /evidencias · confirmación por otro integrante", integracion: "Supabase Storage",
+    ahora: "Operando", detalleAhora: "La foto se guarda reducida en el navegador; otra persona de la familia la confirma.",
+  },
+  equipo: {
+    titulo: "Equipo médico: préstamo y renta", seccion: "Red de cuidado", modulos: "M7 Comunicación · M14 Alianzas", datos: "Equipo, Prestamo, aliados",
+    servicio: "POST /prestamos; la persona acepta desde su cuenta", integracion: "Proveedores de equipo médico (alianza por confirmar)",
+    ahora: "Simulado", detalleAhora: "El préstamo entre perfiles opera; la renta con aliados y sus tarifas son de ejemplo.",
+  },
+  "cv-cuidado": {
+    titulo: "CV de cuidado", seccion: "Personal", modulos: "M10 Certificación · M14", datos: "Horas, habilidades, evidencias, certificaciones, ingreso",
+    servicio: "Vista calculada + impresión a PDF", integracion: "Open Badges; bolsa de empleo (alianzas)",
+    ahora: "Operando", detalleAhora: "Se calcula de lo registrado; se imprime o guarda como PDF desde el navegador.",
+  },
+  "union-qr": {
+    titulo: "Unirse al espacio con QR", seccion: "Acceso", modulos: "M1 Red del caso", datos: "Familia.codigo, Membresia",
+    servicio: "GET /unirse?c= con verificación por OTP", integracion: "Twilio Verify (código por WhatsApp)",
+    ahora: "Simulado", detalleAhora: "El QR y el código funcionan; se elige el perfil en lugar de confirmar con OTP. Cada navegador tiene su copia de los datos.",
+  },
+  "mi-voz": {
+    titulo: "Mi voz: la persona cuidada como agente activo", seccion: "Espacio familiar", modulos: "M1 Red del caso · M2 Expediente", datos: "Paciente.voz, Sentir, Aporte, permisos",
+    servicio: "Cuenta propia con rol persona cuidada; permisos que filtran su historial", integracion: "Ley de Voluntad Anticipada de la CDMX (documento adjunto)",
+    ahora: "Operando", detalleAhora: "Nota de voz con transcripción, autorreporte, decisiones, permisos, metas y banco de tiempo; los permisos ocultan su historial a quien ella elija.",
+  },
+  accesos: {
+    titulo: "Accesos según el rol", seccion: "Acceso", modulos: "M1 Red del caso", datos: "Usuario.roles, Membresia.rol",
+    servicio: "Políticas por rol (RLS en Supabase)", integracion: "—",
+    ahora: "Operando", detalleAhora: "El menú solo muestra lo que corresponde al rol; si se entra por la dirección, la pantalla explica por qué no está activa.",
+  },
+  metricas: {
+    titulo: "Indicadores del espacio familiar", seccion: "Hoy", modulos: "M12 Analítica", datos: "Relevos, Zarit, alertas, certificaciones, ingresos",
+    servicio: "Vista agregada por espacio", integracion: "Escala de Zarit abreviada (por validar con el equipo de salud)",
+    ahora: "Operando", detalleAhora: "Calculado de lo registrado: horas de 30 días, última escala de cada cuidadora, minutos hasta la primera respuesta a cada alerta.",
   },
 } satisfies Record<string, TechItem>;
 

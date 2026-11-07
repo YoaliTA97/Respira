@@ -1,4 +1,4 @@
-import { CERTIFICACIONES, TUTORIALES, condicionCatalogo } from "./catalogos";
+import { CERTIFICACIONES, MINUTOS_A_TIEMPO, TUTORIALES, ZARIT_CORTE, condicionCatalogo } from "./catalogos";
 import { diaSemana, fechaISO } from "./seed";
 import type { DB, Disponibilidad, Id, Membresia, Relevo, Usuario } from "./types";
 
@@ -82,7 +82,7 @@ export function cargaSemana(db: DB, familiaId: Id, ahora: Date) {
   const d = new Date(ahora);
   d.setDate(d.getDate() - 7);
   const desde = fechaISO(d);
-  const filas = integrantes(db, familiaId).map((i) => ({ ...i, horas: horasCuidado(db, i.usuario.id, ahora, desde, familiaId) }));
+  const filas = integrantes(db, familiaId).filter((i) => i.membresia.rol !== "persona").map((i) => ({ ...i, horas: horasCuidado(db, i.usuario.id, ahora, desde, familiaId) }));
   const externas = db.relevos
     .filter((r) => r.familiaId === familiaId && r.origen === "red" && r.fecha >= desde && estadoRelevo(r, ahora) === "cubierto")
     .reduce((a, r) => a + r.horas, 0);
@@ -203,4 +203,96 @@ export function conocidos(db: DB, usuarioId: Id, excluir: Id[] = []) {
 export function perfilVisible(db: DB, quienVe: Id, perfil: Usuario) {
   const comparten = db.membresias.some((m) => m.usuarioId === perfil.id && m.estado === "activa" && db.membresias.some((n) => n.usuarioId === quienVe && n.familiaId === m.familiaId && n.estado === "activa"));
   return perfil.ofreceAyuda.activo || comparten;
+}
+
+const minutosEntre = (a: string, b: string) => Math.round((new Date(b).getTime() - new Date(a).getTime()) / 60000);
+
+// Ingreso que una persona recibió por cuidar: relevos pagados en la red e intercambios monetarios.
+export function ingresoCuidado(db: DB, usuarioId: Id, familiaId?: Id) {
+  const red = db.solicitudes.filter((s) => s.usuarioId === usuarioId && s.estado === "aceptada" && s.pago === "pago" && (!familiaId || s.familiaId === familiaId)).reduce((a, s) => a + s.monto, 0);
+  const inter = db.intercambios.filter((i) => i.aUsuarioId === usuarioId && i.estado === "aceptado" && i.tipo === "monetario" && (!familiaId || i.familiaId === familiaId)).reduce((a, i) => a + i.monto, 0);
+  return red + inter;
+}
+
+// Indicadores del espacio familiar: horas de relevo del mes, sobrecarga (Zarit),
+// alertas atendidas a tiempo y cuidadoras certificadas con ingreso.
+export function metricasEspacio(db: DB, familiaId: Id, ahora: Date) {
+  const hace30 = new Date(ahora);
+  hace30.setDate(hace30.getDate() - 30);
+  const desde = fechaISO(hace30);
+  const cubiertos = db.relevos.filter((r) => r.familiaId === familiaId && r.asignadoA && r.fecha >= desde && estadoRelevo(r, ahora) === "cubierto");
+  const horasFamilia = cubiertos.filter((r) => r.origen === "familia").reduce((a, r) => a + r.horas, 0);
+  const horasRed = cubiertos.filter((r) => r.origen === "red").reduce((a, r) => a + r.horas, 0);
+
+  const miembros = integrantes(db, familiaId).filter((i) => i.membresia.rol !== "persona");
+  const zarit = miembros.map(({ usuario }) => {
+    const suyas = db.zarit.filter((z) => z.usuarioId === usuario.id).sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
+    return { usuario, ultima: suyas[0] ?? null, anterior: suyas[1] ?? null };
+  });
+  const conZarit = zarit.filter((z) => z.ultima);
+  const sobrecargadas = conZarit.filter((z) => z.ultima!.puntaje >= ZARIT_CORTE);
+
+  const alertas = db.alertas.filter((a) => a.familiaId === familiaId && a.fechaHora.slice(0, 10) >= desde);
+  const tiempos = alertas.filter((a) => a.atendidaEn).map((a) => minutosEntre(a.fechaHora, a.atendidaEn!));
+  const aTiempo = tiempos.filter((m) => m <= MINUTOS_A_TIEMPO).length;
+  const ordenados = [...tiempos].sort((a, b) => a - b);
+  const mediana = ordenados.length ? ordenados[Math.floor(ordenados.length / 2)] : null;
+
+  const redIds = cubiertos.filter((r) => r.origen === "red").map((r) => r.asignadoA!);
+  const personas = Array.from(new Set([...miembros.map((m) => m.usuario.id), ...redIds]))
+    .map((id) => db.usuarios.find((u) => u.id === id)!)
+    .filter(Boolean)
+    .map((u) => ({ usuario: u, certs: certificadas(db, u.id), ingreso: ingresoCuidado(db, u.id) }));
+  const certificadasConIngreso = personas.filter((p) => p.certs.length > 0 && p.ingreso > 0);
+
+  return {
+    horasMes: horasFamilia + horasRed, horasFamilia, horasRed,
+    zarit, conZarit: conZarit.length, sobrecargadas: sobrecargadas.length,
+    alertas: { total: alertas.length, atendidas: tiempos.length, aTiempo, activas: alertas.filter((a) => a.estado === "activa").length, mediana },
+    certificadas: personas.filter((p) => p.certs.length > 0), certificadasConIngreso,
+  };
+}
+
+// CV de cuidado: lo que la persona sabe hacer y la evidencia que lo respalda.
+export function cvCuidado(db: DB, usuarioId: Id, ahora: Date) {
+  const hechos = completados(db, usuarioId);
+  const certs = estadoCertificaciones(db, usuarioId, ahora);
+  const certificadasIds = new Set(certs.filter((c) => c.estado === "certificada").flatMap((c) => c.def.requiere));
+  const relevos = db.relevos.filter((r) => r.asignadoA === usuarioId && estadoRelevo(r, ahora) === "cubierto");
+  const habilidadesCv = TUTORIALES.map((t) => {
+    const practicas = db.progreso.find((p) => p.usuarioId === usuarioId && p.tutorialId === t.id)?.practicas ?? 0;
+    const nivel: "Certificada" | "Verificada" | "Por aprender" = certificadasIds.has(t.id) ? "Certificada" : hechos.has(t.id) ? "Verificada" : "Por aprender";
+    return { tutorial: t, practicas, nivel };
+  });
+  const evidencias = db.evidencias.filter((e) => e.porUsuarioId === usuarioId);
+  return {
+    horas: horasCuidado(db, usuarioId, ahora),
+    relevos: relevos.length,
+    relevosRed: relevos.filter((r) => r.origen === "red").length,
+    familias: new Set(relevos.map((r) => r.familiaId)).size,
+    registros: db.lecturas.filter((l) => l.porUsuarioId === usuarioId).length,
+    evidencias: evidencias.length,
+    confirmadas: evidencias.filter((e) => e.confirmadaPor).length,
+    habilidades: habilidadesCv,
+    certificaciones: certs,
+    ingreso: ingresoCuidado(db, usuarioId),
+  };
+}
+
+// Equipo: quién de la familia o de la red puede prestar algo, dentro del radio del hogar.
+export function prestadoresEquipo(db: DB, familiaId: Id, tipo: string, radioKm = 6) {
+  const fam = db.familias.find((f) => f.id === familiaId);
+  if (!fam) return [];
+  const miembros = new Set(db.membresias.filter((m) => m.familiaId === familiaId && m.estado === "activa").map((m) => m.usuarioId));
+  return db.usuarios
+    .filter((u) => (u.equipo ?? []).includes(tipo) && (miembros.has(u.id) || u.ofreceAyuda.activo))
+    .map((u) => ({ usuario: u, distancia: km(fam.hogar, u.ubicacion), deLaFamilia: miembros.has(u.id) }))
+    .filter((x) => x.deLaFamilia || x.distancia <= radioKm)
+    .sort((a, b) => a.distancia - b.distancia);
+}
+
+// "Yo decido sobre mis datos": la persona cuidada puede retirar a alguien el permiso de ver su historial.
+export function puedeVerHistorial(p: { usuarioId?: Id; voz?: { permisos: Record<Id, boolean> } } | null, usuarioId?: Id | null) {
+  if (!p || !usuarioId) return false;
+  return p.usuarioId === usuarioId || p.voz?.permisos?.[usuarioId] !== false;
 }

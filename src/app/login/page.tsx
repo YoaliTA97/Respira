@@ -22,8 +22,9 @@ export default function Login() {
 
   const demoFamilia = db.membresias.filter((m) => m.familiaId === FAMILIA_DEMO && m.estado === "activa").map((m) => ({ m, u: db.usuarios.find((u) => u.id === m.usuarioId)! })).filter((x) => x.u);
   const demoRed = db.usuarios.filter((u) => u.ofreceAyuda.activo && ["u-lupita", "u-chela", "u-teresa"].includes(u.id));
-  const SEMILLA = new Set(["u-rosa", "u-jorge", "u-mariana", "u-lupita", "u-chela", "u-teresa", "u-alberto", "u-guadalupe"]);
-  const otras = db.usuarios.filter((u) => !SEMILLA.has(u.id) && u.alcaldia !== "");
+  const SEMILLA = new Set(["u-rosa", "u-jorge", "u-mariana", "u-lucia", "u-lupita", "u-chela", "u-teresa", "u-alberto", "u-guadalupe", "u-rocio", "u-martha", "u-irma"]);
+  // Cuentas creadas en este navegador, incluidas las personas invitadas a un espacio
+  const otras = db.usuarios.filter((u) => !SEMILLA.has(u.id) && (u.alcaldia !== "" || db.membresias.some((m) => m.usuarioId === u.id)));
 
   const pedirCodigo = () => {
     if (!db.usuarios.some((u) => u.telefono === telefono.replace(/\D/g, ""))) {
@@ -115,7 +116,11 @@ export default function Login() {
               ))}
             </>
           )}
-          <button type="button" onClick={reiniciarDemo} className="mt-1 self-start text-xs text-muted underline">Reiniciar datos de ejemplo</button>
+          <p className="mt-1 text-xs leading-relaxed text-muted">Lo que registras se guarda en este navegador: puedes cerrar sesión, recargar o cerrar la pestaña y tus datos siguen aquí.</p>
+          <div className="flex flex-wrap gap-3 text-xs">
+            <Link href="/guion" className="font-semibold text-ink underline">Guion de presentación (3 min)</Link>
+            <button type="button" onClick={reiniciarDemo} className="text-muted underline">Reiniciar familia de ejemplo</button>
+          </div>
         </div>
       </div>
     </div>

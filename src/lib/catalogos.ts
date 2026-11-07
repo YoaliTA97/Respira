@@ -142,6 +142,24 @@ const ALIADA = "Institución aliada (Cruz Roja, UNAM o UAM; convenio por confirm
 // Contenido de ejemplo para la demo. Cada tutorial debe producirlo y validarlo la institución aliada.
 export const TUTORIALES: Tutorial[] = [
   {
+    id: "autonomia",
+    titulo: "Acompañar sin hacer por ella",
+    habilidad: "Acompañar la autonomía",
+    duracionMin: 6,
+    institucion: "Institución aliada por confirmar",
+    pasos: [
+      "Pregúntale qué quiere hacer ella misma y en qué necesita ayuda.",
+      "Dale tiempo: espera antes de ayudar y ofrece apoyo, no lo hagas por ella.",
+      "Prepara el entorno: ropa a la mano, silla firme, buena luz.",
+      "Celebra lo que logra y regístralo en sus metas de autonomía.",
+      "Si hay riesgo de caída, acompaña de cerca sin tomar el control.",
+    ],
+    quiz: [
+      { pregunta: "Quiere ponerse los zapatos sola y tarda. ¿Qué haces?", opciones: ["Se los pongo yo para ir más rápido", "Espero, le acerco una silla firme y ofrezco ayuda si la pide", "Le digo que no puede"], correcta: 1 },
+      { pregunta: "¿Para qué sirven las metas de autonomía?", opciones: ["Para que haga lo que pueda por sí misma y lo note la familia", "Para calificarla", "No sirven en personas mayores"], correcta: 0 },
+    ],
+  },
+  {
     id: "signos-vitales",
     titulo: "Tomar pulso, respiración y presión",
     habilidad: "Signos vitales",
@@ -306,3 +324,146 @@ export function telefonoLimpio(v: string) {
   else if (d.length > 10 && d.startsWith("52")) d = d.slice(2);
   return d.slice(0, 10);
 }
+
+// SIDECU: Sistema de Información de Cuidados de la Secretaría de las Mujeres y el Sistema Nacional DIF.
+// Hoy publica el mapa de centros públicos de cuidado; en la fase inicial Respira solo redirige ahí.
+export const SIDECU = {
+  nombre: "SIDECU",
+  nombreLargo: "Sistema de Información de Cuidados",
+  institucion: "Secretaría de las Mujeres y Sistema Nacional DIF",
+  url: "https://cuidados.mujeres.gob.mx",
+};
+
+// Equipo médico. "signo" liga el equipo con lo que se mide en la valoración.
+export const EQUIPOS: { id: string; nombre: string; signo?: SignoId; uso: string; rentaSemana?: number }[] = [
+  { id: "baumanometro", nombre: "Baumanómetro digital", signo: "pa", uso: "Presión arterial", rentaSemana: 80 },
+  { id: "glucometro", nombre: "Glucómetro", signo: "glucosa", uso: "Glucosa; las tiras se compran aparte" },
+  { id: "oximetro", nombre: "Oxímetro de pulso", signo: "spo2", uso: "Oxigenación y pulso", rentaSemana: 60 },
+  { id: "termometro", nombre: "Termómetro digital", signo: "temperatura", uso: "Temperatura" },
+  { id: "andadera", nombre: "Andadera", uso: "Caminar con apoyo después de una caída", rentaSemana: 120 },
+  { id: "silla-ruedas", nombre: "Silla de ruedas", uso: "Traslados y consultas", rentaSemana: 250 },
+  { id: "cama-hospital", nombre: "Cama hospitalaria", uso: "Personas que pasan el día en cama", rentaSemana: 900 },
+  { id: "colchon", nombre: "Colchón antiescaras", uso: "Prevenir úlceras por presión", rentaSemana: 300 },
+  { id: "oxigeno", nombre: "Concentrador de oxígeno", uso: "Solo con indicación médica", rentaSemana: 1200 },
+];
+export const nombreEquipo = (id: string) => EQUIPOS.find((e) => e.id === id)?.nombre ?? id;
+
+// Aliados de renta o préstamo de equipo: por confirmar. Tarifas de ejemplo, no cotizaciones.
+export const ALIADOS_EQUIPO = [
+  { id: "aliado-renta", nombre: "Aliado de renta de equipo médico", modalidad: "Renta por semana con entrega a domicilio", estado: "Alianza por confirmar", equipos: ["baumanometro", "oximetro", "andadera", "silla-ruedas", "cama-hospital", "colchon", "oxigeno"] },
+  { id: "aliado-banco", nombre: "Banco comunitario de préstamo", modalidad: "Préstamo sin costo por 30 días (programa público o de la alcaldía)", estado: "Programa por confirmar", equipos: ["andadera", "silla-ruedas", "baumanometro"] },
+];
+
+// Guías del médico: videos cortos para medir y valorar en casa. El video lo proporciona el médico
+// aliado; mientras tanto se muestran los puntos clave. Contenido por validar con personal de salud.
+export type GuiaMedica = { id: string; titulo: string; signo?: SignoId; equipo?: string; minutos: number; puntos: string[] };
+export const GUIAS_MEDICAS: GuiaMedica[] = [
+  {
+    id: "presion", titulo: "Cómo tomar la presión con baumanómetro", signo: "pa", equipo: "baumanometro", minutos: 4,
+    puntos: [
+      "Que esté sentada y en reposo 5 minutos, con la espalda apoyada y los pies en el piso.",
+      "Brazo descubierto, apoyado a la altura del corazón.",
+      "Coloca el brazalete 2 a 3 cm arriba del pliegue del codo, sin apretar de más.",
+      "Durante la medición nadie habla ni se mueve.",
+      "Anota los dos números (por ejemplo 130/80) y la hora. Si sale muy distinto a lo habitual, espera 2 minutos y repite.",
+    ],
+  },
+  {
+    id: "pulso-respiracion", titulo: "Cómo contar el pulso y la respiración", signo: "fc", minutos: 3,
+    puntos: [
+      "Pulso: pon dos dedos (no el pulgar) en la muñeca, del lado del pulgar, y cuenta los latidos durante 60 segundos.",
+      "Si el pulso se siente irregular, anótalo además del número.",
+      "Respiración: sin avisarle, cuenta cuántas veces sube su pecho en 60 segundos.",
+      "Si respira muy rápido, con esfuerzo o se le hunden las costillas, repórtalo de inmediato.",
+    ],
+  },
+  {
+    id: "glucosa", titulo: "Cómo medir la glucosa con glucómetro", signo: "glucosa", equipo: "glucometro", minutos: 4,
+    puntos: [
+      "Lava y seca sus manos; el alcohol o el azúcar en la piel alteran el resultado.",
+      "Pica a un costado de la yema del dedo y deja que salga la gota sin exprimir de más.",
+      "Anota el número, la hora y si fue antes o después de comer.",
+      "Si marca muy bajo o muy alto, sigue la indicación de su médico y repórtalo en el chat.",
+    ],
+  },
+  {
+    id: "oximetro", titulo: "Cómo usar el oxímetro", signo: "spo2", equipo: "oximetro", minutos: 2,
+    puntos: ["Con el dedo tibio y sin esmalte de uñas.", "Que esté quieta; espera a que el número deje de cambiar (unos 30 segundos).", "Anota la oxigenación (%) y el pulso que marca."],
+  },
+  {
+    id: "temperatura", titulo: "Cómo tomar la temperatura", signo: "temperatura", equipo: "termometro", minutos: 2,
+    puntos: ["Termómetro digital en la axila seca, con el brazo pegado al cuerpo hasta que suene.", "Anota la temperatura y la hora."],
+  },
+  {
+    id: "conciencia", titulo: "Cómo valorar el estado de conciencia", signo: "conciencia", minutos: 5,
+    puntos: [
+      "Observa: ¿tiene los ojos abiertos y te sigue con la mirada?",
+      "Si no, háblale en voz alta por su nombre. Si tampoco responde, tócala del hombro con firmeza.",
+      "Pregúntale su nombre, dónde está y qué día o mes es. Compáralo con cómo está normalmente.",
+      "Un cambio repentino (más confundida, más dormida o habla raro) es señal de alerta aunque los signos estén bien.",
+      "Si no responde a la voz ni al tacto, llama al 911.",
+    ],
+  },
+  {
+    id: "urgencia", titulo: "Cuándo es urgencia y qué hacer", minutos: 4,
+    puntos: [
+      "Llama al 911 si no responde, le falta el aire, tiene dolor de pecho o se golpeó la cabeza y está confundida.",
+      "Si hay alerta, usa el botón de pánico: avisa a la familia y abre los centros de SIDECU.",
+      "Ten a la mano su lista de medicamentos, alergias y su carnet o afiliación.",
+    ],
+  },
+];
+
+// Valoración en checklist
+export type SenalChecklist = "caida" | "golpe_cabeza" | "no_se_levanta" | "dolor_pecho" | "dificultad_respirar" | "sangrado" | "mareo" | "poca_agua" | "sudoracion";
+export const SINTOMAS: { id: string; t: string; senal?: SenalChecklist }[] = [
+  { id: "dolor_pecho", t: "Dolor de pecho", senal: "dolor_pecho" },
+  { id: "dificultad_respirar", t: "Le falta el aire", senal: "dificultad_respirar" },
+  { id: "caida", t: "Se cayó", senal: "caida" },
+  { id: "golpe_cabeza", t: "Golpe en la cabeza", senal: "golpe_cabeza" },
+  { id: "no_se_levanta", t: "No puede levantarse", senal: "no_se_levanta" },
+  { id: "sangrado", t: "Sangrado", senal: "sangrado" },
+  { id: "mareo", t: "Mareo", senal: "mareo" },
+  { id: "sudoracion", t: "Sudoración o temblor", senal: "sudoracion" },
+  { id: "poca_agua", t: "Toma poca agua", senal: "poca_agua" },
+  { id: "nausea", t: "Náusea o vómito" },
+  { id: "no_come", t: "No ha querido comer" },
+  { id: "orina", t: "Orina poco o con ardor" },
+  { id: "evacuacion", t: "Estreñimiento o diarrea" },
+  { id: "tos", t: "Tos o flemas" },
+  { id: "piel", t: "Herida, moretón o piel enrojecida" },
+  { id: "dolor_nuevo", t: "Dolor nuevo en alguna parte" },
+  { id: "animo", t: "Triste, ansiosa o irritable" },
+  { id: "sueno", t: "Durmió mal" },
+];
+
+export const ANTECEDENTES = [
+  "Hipertensión", "Diabetes", "Enfermedad del corazón", "Embolia (EVC)", "Enfermedad renal", "EPOC o asma", "Cáncer", "Demencia",
+  "Depresión", "Osteoporosis", "Fractura", "Cirugía en el último año", "Hospitalización en el último año", "Caída en los últimos 6 meses",
+];
+export const DISPOSITIVOS = ["Lentes", "Aparato auditivo", "Prótesis dental", "Bastón", "Andadera", "Silla de ruedas", "Oxígeno", "Sonda", "Pañal"];
+export const AFILIACIONES = ["IMSS", "ISSSTE", "IMSS-Bienestar", "Pemex, Sedena o Semar", "Seguro privado", "Sin afiliación"];
+export const ULTIMA_CONSULTA = ["Menos de 1 mes", "1 a 3 meses", "3 a 6 meses", "Más de 6 meses", "No recuerdo"];
+// Zarit abreviada (7 preguntas, respuestas de 1 a 5). 17 o más indica sobrecarga intensa.
+// Redacción de ejemplo: validar la versión y el punto de corte con el equipo de salud aliado.
+export const ZARIT_PREGUNTAS = [
+  "¿Siente que, por el tiempo que dedica a su familiar, ya no tiene tiempo suficiente para usted?",
+  "¿Se siente agobiada por combinar el cuidado con otras responsabilidades (trabajo, casa, familia)?",
+  "¿Siente que cuidar a su familiar afecta su relación con otras personas de la familia?",
+  "¿Se siente agotada cuando tiene que estar con su familiar?",
+  "¿Siente que su salud ha empeorado por cuidar a su familiar?",
+  "¿Siente que ha perdido el control de su vida desde que empezó la enfermedad de su familiar?",
+  "En general, ¿qué tanta carga siente por cuidar a su familiar?",
+];
+export const ZARIT_OPCIONES = ["Nunca", "Rara vez", "Algunas veces", "Bastantes veces", "Casi siempre"];
+export const ZARIT_CORTE = 17;
+export const nivelZarit = (p: number) => (p >= ZARIT_CORTE ? "Sobrecarga intensa" : p >= 13 ? "Sobrecarga leve" : "Sin sobrecarga");
+// Una alerta roja se considera atendida a tiempo si alguien la atiende en 30 minutos o menos.
+export const MINUTOS_A_TIEMPO = 30;
+
+export const ANIMOS = ["Muy bien", "Bien", "Regular", "Triste", "Muy mal"];
+export const SUENOS = ["Dormí bien", "Regular", "Dormí mal"];
+export const ACTIVIDADES_APORTE = ["Acompañar a mis nietos", "Llamada de compañía a otra persona mayor", "Enseñar una receta o un oficio", "Cuidar plantas o mascotas de la familia", "Contar historias de la familia"];
+export const METAS_SUGERIDAS = ["Caminar 10 minutos", "Ponerme los zapatos sola", "Preparar mi café", "Salir al mercado acompañada", "Hacer mis ejercicios de manos"];
+
+export const MEDICAMENTOS_DE = ["Se los dan en su unidad", "Los compramos", "Una parte y otra", "No toma medicamentos"];

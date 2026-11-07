@@ -32,6 +32,7 @@ const Salida = z.object({
 type Entrada = {
   texto: string;
   medicionManual?: Medicion;
+  senalesManual?: Senal[];
   paciente: Pick<Paciente, "nombre" | "edad" | "condiciones" | "alergias" | "evento" | "signos" | "umbrales">;
   historial: { de: "asistente" | "familia"; texto: string }[];
 };
@@ -72,7 +73,7 @@ export async function POST(req: Request) {
 
   const ext = extraerMedicion(body.texto);
   let medicion: Medicion = { ...ext.medicion, ...(body.medicionManual ?? {}) };
-  let senales: Senal[] = ext.senales;
+  let senales: Senal[] = Array.from(new Set([...ext.senales, ...(body.senalesManual ?? [])]));
   let ev = evaluar(medicion, senales, umbrales, condiciones, signos);
   let respuesta = respuestaPorReglas(ev, p.nombre, condiciones);
   let fuente: "reglas" | "reglas + Claude" = "reglas";

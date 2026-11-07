@@ -121,6 +121,15 @@ function Chat() {
         </TechTag>
       </div>
 
+      {paciente.voz?.palabras && (
+        <TechTag k="mi-voz" className="mb-3">
+          <Link href="/mi-voz" className="flex items-start gap-2 rounded-xl border border-primario/30 bg-realce/50 px-3 py-2 text-sm">
+            <span className="shrink-0 font-semibold">En palabras de {paciente.nombre}:</span>
+            <span className="line-clamp-2 text-ink-2">“{paciente.voz.palabras.texto}”{paciente.voz.noQuiero.length ? ` · No quiere: ${paciente.voz.noQuiero.join(", ").toLowerCase()}.` : ""}</span>
+          </Link>
+        </TechTag>
+      )}
+
       <TechTag k="chat" className="flex min-h-0 flex-1 flex-col">
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto rounded-2xl border border-line bg-[#f3f1ea] p-4">
           {mensajes.map((x) => <Burbuja key={x.id} m={x} />)}
@@ -175,6 +184,7 @@ function Chat() {
                   className="min-h-[48px] flex-1 resize-none bg-transparent p-2 text-[15px] outline-none"
                 />
                 <button type="button" onClick={() => setForm(true)} className={btnSecondary} title="Registrar signos con formulario">Signos</button>
+                <Link href="/valoracion" className={`${btnSecondary} hidden sm:inline-flex`} title="Valoración completa en checklist">Checklist</Link>
                 <button type="button" onClick={() => setGrabando(true)} aria-label="Grabar nota de voz" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primario text-white">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
                 </button>

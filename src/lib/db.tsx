@@ -1,25 +1,35 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { UMBRALES_BASE } from "./catalogos";
+import { SIDECU, UMBRALES_BASE, nombreEquipo } from "./catalogos";
 import { familiasDe, integrantes as integrantesDe, planInicialRelevos, relevoActual, type Integrante } from "./calculos";
-import { evaluar, extraerMedicion, respuestaPorReglas, type Evaluacion, type Medicion } from "./reglas";
+import { evaluar, extraerMedicion, respuestaPorReglas, type Evaluacion, type Medicion, type Senal } from "./reglas";
 import { CODIGO_DEMO, DB_VERSION, FAMILIA_DEMO, crearSeed, fechaISO } from "./seed";
 import type {
-  Alerta, DB, Familia, Id, Intercambio, LecturaSignos, Medicamento, Membresia, Mensaje, Paciente, RolFamilia, SignoId, SolicitudRed, Tono, Usuario,
+  Alerta, DB, Equipo, Evidencia, Familia, HistoriaClinica, Id, Intercambio, ServiciosSalud, Sentir, VozPersona, LecturaSignos, Medicamento, Membresia, Mensaje, Paciente, RolFamilia, SignoId, SolicitudRed, Tono, Usuario,
 } from "./types";
 
 // Capa de datos. Cada acción corresponde a una operación del backend del MVP (Supabase con
 // políticas por membresía). En esta versión los datos viven en localStorage y se sincronizan
 // entre pestañas; la sesión (usuario y espacio activo) vive en sessionStorage, por pestaña.
 
+// Simulación: las invitaciones se aceptan solas para no depender de WhatsApp ni de los tiempos de
+// cada persona durante la demo. Con backend vuelve a false: la persona acepta desde su cuenta.
+const ACEPTAR_INVITACIONES = true;
+const ESTADO_INVITACION: Membresia["estado"] = ACEPTAR_INVITACIONES ? "activa" : "invitada";
 const LS_DB = "respira-db";
+const LS_ULTIMA = "respira-ultima-sesion"; // para volver a entrar sin iniciar sesión al reabrir
 const SS_SESION = "respira-sesion";
 const LS_TECH = "respira-capa-tecnica";
 const TONOS: Tono[] = ["t1", "t2", "t3", "t4", "t5"];
 const CENTRO_CDMX = { lat: 19.3135, lng: -99.146 };
 
 const uid = (p: string) => `${p}-${crypto.randomUUID().slice(0, 8)}`;
+// Código de unión para el QR: 3 letras del nombre + 3 dígitos (p. ej. RAM315).
+const nuevoCodigo = (nombre: string) => {
+  const letras = nombre.replace(/^familia\s+/i, "").normalize("NFD").replace(/[^a-zA-Z]/g, "").toUpperCase().padEnd(3, "X").slice(0, 3);
+  return `${letras}${String(100 + Math.floor(Math.random() * 900))}`;
+};
 const ahoraISO = () => {
   const d = new Date();
   return `${fechaISO(d)}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
@@ -29,6 +39,18 @@ const soloDigitos = (t: string) => t.replace(/\D/g, "");
 export type PerfilNuevo = Pick<Usuario, "nombre" | "telefono" | "genero" | "alcaldia" | "roles" | "experiencia" | "disponibilidad" | "ofreceAyuda" | "bio">;
 
 export type InvitacionNueva = { nombre: string; telefono: string; parentesco: string; rol: RolFamilia; principal: boolean; genero: Usuario["genero"] };
+
+export type ValoracionNueva = {
+  medicion: Medicion;
+  senales: Senal[];
+  sintomas: string[];
+  historia?: Omit<HistoriaClinica, "actualizada" | "porUsuarioId">;
+  servicios?: Omit<ServiciosSalud, "actualizada" | "porUsuarioId">;
+  nota: string;
+  evidencias: { descripcion: string; foto: string }[];
+};
+
+export type UnionNueva = { nombre: string; telefono: string; genero: Usuario["genero"]; parentesco: string };
 
 export type FamiliaNueva = {
   nombre: string;
@@ -84,6 +106,26 @@ type Ctx = {
   reportar: (texto: string, opciones?: { notaVoz?: boolean; audioUrl?: string }) => Promise<void>;
   registrarSignos: (m: Medicion, nota?: string) => Promise<void>;
   atenderAlerta: (id: Id, centro?: string) => void;
+  panico: (motivo: string, detalle: string) => Promise<void>;
+  responderZarit: (respuestas: number[]) => void;
+  responderAlerta: (alertaId: Id, texto: string) => void;
+  // Mi voz: la persona cuidada como agente activo
+  guardarVoz: (v: Partial<VozPersona>) => void;
+  darAccesoPersona: (telefono: string) => Id | null;
+  registrarSentir: (s: Pick<Sentir, "dolor" | "animo" | "sueno" | "nota">) => void;
+  marcarMeta: (metaId: Id) => void;
+  registrarAporte: (actividad: string, horas: number) => void;
+  guardarValoracion: (v: ValoracionNueva) => Promise<void>;
+  // evidencia de seguimiento
+  agregarEvidencia: (e: Pick<Evidencia, "tipo" | "descripcion" | "foto" | "lecturaId">) => void;
+  confirmarEvidencia: (id: Id) => void;
+  // equipo médico
+  actualizarEquipo: (tipo: string, estado: Equipo["estado"] | null, de?: string) => void;
+  pedirPrestamo: (tipo: string, aUsuarioId: Id) => void;
+  responderPrestamo: (id: Id, aceptar: boolean) => void;
+  guardarVideoGuia: (id: string, url: string) => void;
+  // unión al espacio con código o QR
+  unirseConCodigo: (codigo: string, como: { usuarioId: Id } | { nuevo: UnionNueva }) => Id | null;
   // persona cuidada y medicación
   actualizarPaciente: (p: Partial<Paciente>) => void;
   agregarMedicamento: (m: Omit<Medicamento, "id" | "familiaId">) => void;
@@ -97,12 +139,46 @@ type Ctx = {
 
 const DataContext = createContext<Ctx | null>(null);
 
+// Renueva la familia de ejemplo y conserva todo lo que se creó en este navegador
+// (familias, cuentas, registros). Se usa al cambiar de versión y al reiniciar la demo.
+function conservar(d: Partial<DB>, semilla: DB): DB {
+  const demoIds = new Set(semilla.usuarios.map((u) => u.id));
+  const ajena = (x: { familiaId: Id }) => x.familiaId !== FAMILIA_DEMO;
+  const de = <T,>(x: T[] | undefined) => x ?? [];
+  const medsAjenos = new Set(de(d.medicamentos).filter(ajena).map((m) => m.id));
+  return {
+    ...semilla,
+    usuarios: [...semilla.usuarios, ...de(d.usuarios).filter((u) => !demoIds.has(u.id))],
+    familias: [...semilla.familias, ...de(d.familias).filter((f) => f.id !== FAMILIA_DEMO).map((f) => ({ ...f, codigo: f.codigo ?? nuevoCodigo(f.nombre) }))],
+    membresias: [...semilla.membresias, ...de(d.membresias).filter(ajena)],
+    pacientes: [...semilla.pacientes, ...de(d.pacientes).filter(ajena)],
+    medicamentos: [...semilla.medicamentos, ...de(d.medicamentos).filter(ajena)],
+    tomas: [...semilla.tomas, ...de(d.tomas).filter((t) => medsAjenos.has(t.medicamentoId))],
+    lecturas: [...semilla.lecturas, ...de(d.lecturas).filter(ajena)],
+    relevos: [...semilla.relevos, ...de(d.relevos).filter(ajena)],
+    intercambios: [...semilla.intercambios, ...de(d.intercambios).filter(ajena)],
+    solicitudes: [...semilla.solicitudes, ...de(d.solicitudes).filter(ajena)],
+    mensajes: [...semilla.mensajes, ...de(d.mensajes).filter(ajena)],
+    alertas: [...semilla.alertas, ...de(d.alertas).filter(ajena)],
+    progreso: [...semilla.progreso, ...de(d.progreso).filter((x) => !demoIds.has(x.usuarioId))],
+    certificaciones: [...semilla.certificaciones, ...de(d.certificaciones).filter((x) => !demoIds.has(x.usuarioId))],
+    equipos: [...semilla.equipos, ...de(d.equipos).filter(ajena)],
+    prestamos: [...semilla.prestamos, ...de(d.prestamos).filter(ajena)],
+    evidencias: [...semilla.evidencias, ...de(d.evidencias).filter(ajena)],
+    zarit: [...semilla.zarit, ...de(d.zarit).filter((x) => !demoIds.has(x.usuarioId))],
+    sentires: [...semilla.sentires, ...de(d.sentires).filter(ajena)],
+    aportes: [...semilla.aportes, ...de(d.aportes).filter(ajena)],
+    videosGuia: { ...(d.videosGuia ?? {}) },
+  };
+}
+
 function leerDB(ahora: Date): DB {
   try {
     const raw = localStorage.getItem(LS_DB);
     if (raw) {
       const db = JSON.parse(raw) as DB;
       if (db.version === DB_VERSION) return db;
+      return conservar(db, crearSeed(ahora));
     }
   } catch {
     /* sin almacenamiento */
@@ -132,7 +208,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     let s: Sesion = { usuarioId: null, familiaId: null };
     let tech = false;
     try {
-      s = JSON.parse(sessionStorage.getItem(SS_SESION) ?? "null") ?? s;
+      s = JSON.parse(sessionStorage.getItem(SS_SESION) ?? "null") ?? JSON.parse(localStorage.getItem(LS_ULTIMA) ?? "null") ?? s;
+      if (s.usuarioId) sessionStorage.setItem(SS_SESION, JSON.stringify(s));
       tech = localStorage.getItem(LS_TECH) === "1";
     } catch {
       /* ignorar */
@@ -172,6 +249,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setSesionState(s);
     try {
       sessionStorage.setItem(SS_SESION, JSON.stringify(s));
+      if (s.usuarioId) localStorage.setItem(LS_ULTIMA, JSON.stringify(s));
+      else localStorage.removeItem(LS_ULTIMA);
     } catch {
       /* ignorar */
     }
@@ -213,17 +292,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }
 
   const puede: Ctx["puede"] = (accion) => {
-    if (!membresia) return false;
+    if (!membresia || membresia.rol === "persona") return false;
     if (accion === "administrar") return membresia.rol === "coordinacion";
     if (accion === "registrar") return membresia.rol !== "avisos";
     return membresia.rol !== "avisos";
   };
 
-  const notificarWhatsApp = async (alerta: Alerta, fam: Familia, pac: Paciente) => {
+  const notificarWhatsApp = async (alerta: Alerta, fam: Familia, pac: Paciente, opciones?: { todos?: boolean; encabezado?: string }) => {
     const d = dbRef.current!;
-    const principales = integrantesDe(d, fam.id).filter((i) => i.membresia.principal);
+    const principales = integrantesDe(d, fam.id).filter((i) => (opciones?.todos ? i.usuario.id !== usuario?.id : i.membresia.principal));
     const link = `${window.location.origin}/centros?lat=${fam.hogar.lat}&lng=${fam.hogar.lng}&p=${encodeURIComponent(pac.nombre)}`;
-    const texto = `ALERTA MÉDICA de ${pac.nombre}. ${alerta.motivo} Lo que necesita excede lo que se puede atender en casa. Vean los centros cercanos y decidan a cuál llevarla: ${link}`;
+    const texto = `${opciones?.encabezado ?? `ALERTA MÉDICA de ${pac.nombre}.`} ${alerta.motivo} Lo que necesita excede lo que se puede atender en casa. Ubiquen el centro de cuidados más cercano en ${SIDECU.nombre}: ${SIDECU.url} · Cercanos al hogar: ${link}`;
     let modo: "real" | "simulado" = "simulado";
     try {
       const r = await fetch("/api/whatsapp", {
@@ -243,13 +322,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Reporte: reglas → asistente (IA opcional en el servidor) → lectura, alerta, aviso a la familia
-  const procesarReporte = async (texto: string, medicionManual?: Medicion) => {
+  const procesarReporte = async (texto: string, medicionManual?: Medicion, extra?: { senales?: Senal[]; sintomas?: string[]; origen?: LecturaSignos["origen"] }): Promise<Id | null> => {
     const d = dbRef.current;
-    if (!d || !paciente || !familia || !usuario) return;
+    if (!d || !paciente || !familia || !usuario) return null;
     setProcesando(true);
     const ext = extraerMedicion(texto);
+    const senales0 = Array.from(new Set([...ext.senales, ...(extra?.senales ?? [])]));
     let medicion: Medicion = { ...ext.medicion, ...(medicionManual ?? {}) };
-    let ev: Evaluacion = evaluar(medicion, ext.senales, paciente.umbrales, paciente.condiciones, paciente.signos);
+    let ev: Evaluacion = evaluar(medicion, senales0, paciente.umbrales, paciente.condiciones, paciente.signos);
     let respuesta = respuestaPorReglas(ev, paciente.nombre, paciente.condiciones);
     let fuente: Mensaje["fuente"] = "reglas";
     try {
@@ -259,6 +339,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({
           texto,
           medicionManual,
+          senalesManual: extra?.senales ?? [],
           paciente: { nombre: paciente.nombre, edad: paciente.edad, condiciones: paciente.condiciones, alergias: paciente.alergias ?? [], evento: paciente.evento, signos: paciente.signos, umbrales: paciente.umbrales },
           historial: d.mensajes.filter((m) => m.familiaId === familia.id).slice(-6).map((m) => ({ de: m.de === "asistente" ? "asistente" : "familia", texto: m.texto })),
         }),
@@ -274,12 +355,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       /* sin servidor: reglas locales */
     }
     const ts = ahoraISO();
-    const hayDatos = Object.values(medicion).some((v) => v !== undefined) || ev.senales.length > 0;
+    const hayDatos = Object.values(medicion).some((v) => v !== undefined) || ev.senales.length > 0 || !!extra?.sintomas?.length;
     const lectura: LecturaSignos | null = hayDatos
-      ? { id: uid("l"), familiaId: familia.id, fechaHora: ts, porUsuarioId: usuario.id, ...medicion, senales: ev.senales, origen: medicionManual ? "formulario" : "nota de voz", nivel: ev.nivel }
+      ? {
+          id: uid("l"), familiaId: familia.id, fechaHora: ts, porUsuarioId: usuario.id, ...medicion, senales: ev.senales, sintomas: extra?.sintomas,
+          origen: extra?.origen ?? (medicionManual ? "formulario" : "nota de voz"), nivel: ev.nivel,
+        }
       : null;
     const alerta: Alerta | null =
-      ev.nivel !== "verde" ? { id: uid("a"), familiaId: familia.id, fechaHora: ts, nivel: ev.nivel, titulo: ev.titulo, motivo: ev.motivo, trifecta: ev.trifecta, estado: "activa" } : null;
+      ev.nivel !== "verde"
+        ? { id: uid("a"), familiaId: familia.id, fechaHora: ts, nivel: ev.nivel, titulo: ev.titulo, motivo: ev.motivo, trifecta: ev.trifecta, estado: "activa", origen: "reporte", porUsuarioId: usuario.id }
+        : null;
     const actual = relevoActual(d, familia.id, new Date());
     const practicas = new Set<string>();
     if (medicion.fc !== undefined || medicion.paSist !== undefined) practicas.add("signos-vitales");
@@ -300,6 +386,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }));
     if (alerta && ev.notificarFamilia && familia.consentimiento.alertasWhatsApp) await notificarWhatsApp(alerta, familia, paciente);
     setProcesando(false);
+    return lectura?.id ?? null;
   };
 
   // Crea un perfil mínimo para una persona invitada que aún no tiene cuenta
@@ -363,25 +450,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     },
     reiniciarDemo: () => {
       const semilla = crearSeed(new Date());
-      setDb((d) => {
-        if (!d) return semilla;
-        const demoIds = new Set(semilla.usuarios.map((u) => u.id));
-        const ajena = (x: { familiaId: Id }) => x.familiaId !== FAMILIA_DEMO;
-        return {
-          ...semilla,
-          usuarios: [...semilla.usuarios, ...d.usuarios.filter((u) => !demoIds.has(u.id))],
-          familias: [...semilla.familias, ...d.familias.filter((f) => f.id !== FAMILIA_DEMO)],
-          membresias: [...semilla.membresias, ...d.membresias.filter(ajena)],
-          pacientes: [...semilla.pacientes, ...d.pacientes.filter(ajena)],
-          medicamentos: [...semilla.medicamentos, ...d.medicamentos.filter(ajena)],
-          lecturas: [...semilla.lecturas, ...d.lecturas.filter(ajena)],
-          relevos: [...semilla.relevos, ...d.relevos.filter(ajena)],
-          intercambios: d.intercambios.filter(ajena),
-          solicitudes: d.solicitudes.filter(ajena),
-          mensajes: [...semilla.mensajes, ...d.mensajes.filter(ajena)],
-          alertas: d.alertas.filter(ajena),
-        };
-      });
+      setDb((d) => (d ? conservar(d, semilla) : semilla));
       avisar("Datos de la familia de ejemplo reiniciados");
     },
     crearFamilia: (f) => {
@@ -395,7 +464,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       f.invitaciones.forEach((i) => {
         const r = asegurarPerfil(d, i);
         d = r.d;
-        nuevasMembresias.push({ id: uid("mb"), familiaId: famId, usuarioId: r.id, rol: i.rol, parentesco: i.parentesco, principal: i.principal, estado: "invitada", desde: fechaISO(new Date()) });
+        nuevasMembresias.push({ id: uid("mb"), familiaId: famId, usuarioId: r.id, rol: i.rol, parentesco: i.parentesco, principal: i.principal, estado: ESTADO_INVITACION, desde: fechaISO(new Date()) });
       });
       const pac: Paciente = {
         id: uid("p"), familiaId: famId, nombre: f.paciente.nombre, edad: f.paciente.edad, sexo: f.paciente.sexo, condiciones: f.paciente.condiciones, alergias: f.paciente.alergias,
@@ -404,7 +473,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       };
       const familiaNueva: Familia = {
         id: famId, nombre: f.nombre, alcaldia: f.alcaldia, hogar: { ...CENTRO_CDMX, referencia: `${f.alcaldia} (ubicación aproximada)` }, creadaPor: usuario.id, creadaEn: ts,
-        consentimiento: { ...f.consentimiento, fecha: ts },
+        consentimiento: { ...f.consentimiento, fecha: ts }, codigo: nuevoCodigo(f.nombre),
       };
       const final: DB = {
         ...d,
@@ -442,9 +511,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
       setDb({
         ...d,
-        membresias: [...d.membresias, { id: uid("mb"), familiaId: familia.id, usuarioId: r.id, rol: i.rol, parentesco: i.parentesco, principal: i.principal, estado: "invitada", desde: fechaISO(new Date()) }],
+        membresias: [...d.membresias, { id: uid("mb"), familiaId: familia.id, usuarioId: r.id, rol: i.rol, parentesco: i.parentesco, principal: i.principal, estado: ESTADO_INVITACION, desde: fechaISO(new Date()) }],
       });
-      avisar(`Invitación enviada a ${i.nombre}. Entra con su teléfono para aceptarla.`);
+      avisar(ACEPTAR_INVITACIONES ? `${i.nombre} ya está en el espacio (aceptada automáticamente en la simulación)` : `Invitación enviada a ${i.nombre}. Entra con su teléfono para aceptarla.`);
     },
     cambiarRol: (membresiaId, rol) => mutar((d) => ({ ...d, membresias: d.membresias.map((m) => (m.id === membresiaId ? { ...m, rol } : m)) })),
     setPrincipal: (membresiaId, principal) => mutar((d) => ({ ...d, membresias: d.membresias.map((m) => (m.id === membresiaId ? { ...m, principal } : m)) })),
@@ -526,8 +595,229 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       await procesarReporte(texto, m);
     },
     atenderAlerta: (id, centro) => {
-      mutar((d) => ({ ...d, alertas: d.alertas.map((a) => (a.id === id ? { ...a, estado: "atendida", centroElegido: centro ?? a.centroElegido } : a)) }));
+      const ts = ahoraISO();
+      mutar((d) => ({ ...d, alertas: d.alertas.map((a) => (a.id === id ? { ...a, estado: "atendida", centroElegido: centro ?? a.centroElegido, atendidaEn: a.atendidaEn ?? ts } : a)) }));
       avisar(centro ? `Alerta atendida: van a ${centro}` : "Alerta marcada como atendida");
+    },
+    // Botón de pánico: lo activa quien está cuidando y avisa a toda la familia, en la app y por WhatsApp.
+    panico: async (motivo, detalle) => {
+      if (!familia || !usuario || !paciente) return;
+      const ts = ahoraISO();
+      const quien = usuario.nombre.split(" ")[0];
+      const alerta: Alerta = {
+        id: uid("a"), familiaId: familia.id, fechaHora: ts, nivel: "rojo", titulo: `Botón de pánico: ${motivo}`,
+        motivo: `${paciente.usuarioId === usuario.id ? `${paciente.nombre} pidió ayuda de inmediato` : `${quien} pidió ayuda de inmediato con ${paciente.nombre}`}: ${motivo.toLowerCase()}.${detalle.trim() ? ` ${detalle.trim()}` : ""}`,
+        trifecta: false, estado: "activa", origen: "panico", porUsuarioId: usuario.id,
+      };
+      mutar((d) => ({
+        ...d,
+        alertas: [...d.alertas, alerta],
+        mensajes: [
+          ...d.mensajes,
+          {
+            id: uid("msg"), familiaId: familia.id, de: "asistente", tipo: "respuesta", nivel: "rojo", fechaHora: ts, acciones: ["911", "centros"],
+            texto: `ALERTA DE PÁNICO. ${alerta.motivo} Si no responde, le falta el aire o tiene dolor de pecho, llamen al 911. Para ubicar el centro de cuidados más cercano usen ${SIDECU.nombre}.`,
+          },
+        ],
+      }));
+      if (familia.consentimiento.alertasWhatsApp) await notificarWhatsApp(alerta, familia, paciente, { todos: true, encabezado: `ALERTA DE PÁNICO de ${quien} sobre ${paciente.nombre}.` });
+      else avisar("Alerta enviada a la familia dentro de la app");
+    },
+    // Valoración en checklist: biométricos, síntomas y conciencia pasan por las mismas reglas que la nota de voz.
+    guardarValoracion: async (v) => {
+      if (!familia || !usuario || !paciente) return;
+      const ts = ahoraISO();
+      const m = v.medicion;
+      const partes = [
+        m.fc !== undefined ? `pulso ${m.fc}` : "",
+        m.fr !== undefined ? `respiración ${m.fr}` : "",
+        m.paSist !== undefined ? `presión ${m.paSist}/${m.paDiast ?? ""}` : "",
+        m.glucosa !== undefined ? `glucosa ${m.glucosa}` : "",
+        m.temperatura !== undefined ? `temperatura ${m.temperatura}` : "",
+        m.spo2 !== undefined ? `oxigenación ${m.spo2}%` : "",
+        m.dolor !== undefined ? `dolor ${m.dolor} de 10` : "",
+        m.conciencia ? `está ${m.conciencia}` : "",
+        v.sintomas.length ? `síntomas: ${v.sintomas.join(", ")}` : "",
+        v.nota.trim(),
+      ].filter(Boolean);
+      const texto = `Valoración en checklist: ${partes.join(", ") || "sin datos"}${v.evidencias.length ? ` · ${v.evidencias.length} foto(s) de evidencia` : ""}`;
+      mutar((d) => ({
+        ...d,
+        mensajes: [...d.mensajes, { id: uid("msg"), familiaId: familia.id, de: usuario.id, texto, fechaHora: ts, tipo: "texto" }],
+        pacientes: d.pacientes.map((p) =>
+          p.id !== paciente.id
+            ? p
+            : {
+                ...p,
+                historia: v.historia ? { ...v.historia, actualizada: fechaISO(new Date()), porUsuarioId: usuario.id } : p.historia,
+                servicios: v.servicios ? { ...v.servicios, actualizada: fechaISO(new Date()), porUsuarioId: usuario.id } : p.servicios,
+              },
+        ),
+      }));
+      const lecturaId = await procesarReporte(texto, m, { senales: v.senales, sintomas: v.sintomas, origen: "valoración" });
+      if (v.evidencias.length) {
+        mutar((d) => ({
+          ...d,
+          evidencias: [
+            ...d.evidencias,
+            ...v.evidencias.map((e) => ({ id: uid("ev"), familiaId: familia.id, tipo: "lectura" as const, descripcion: e.descripcion, foto: e.foto, lecturaId: lecturaId ?? undefined, porUsuarioId: usuario.id, fechaHora: ts })),
+          ],
+        }));
+      }
+    },
+    guardarVoz: (v) => {
+      if (!paciente) return;
+      mutar((d) => ({
+        ...d,
+        pacientes: d.pacientes.map((p) =>
+          p.id !== paciente.id ? p : { ...p, voz: { gustos: [], rutinas: [], noQuiero: [], permisos: {}, metas: [], ...p.voz, ...v } },
+        ),
+      }));
+      avisar("Guardado en Mi voz");
+    },
+    darAccesoPersona: (telefono) => {
+      if (!familia || !paciente) return null;
+      const tel = soloDigitos(telefono);
+      if (tel.length !== 10) return null;
+      let d = db;
+      const r = asegurarPerfil(d, { nombre: paciente.nombre, telefono: tel, genero: paciente.sexo });
+      d = r.d;
+      d = {
+        ...d,
+        usuarios: d.usuarios.map((u) => (u.id === r.id && !u.alcaldia ? { ...u, alcaldia: familia.alcaldia, ubicacion: { lat: familia.hogar.lat, lng: familia.hogar.lng }, roles: ["Acompañamiento"] } : u)),
+        membresias: d.membresias.some((m) => m.familiaId === familia.id && m.usuarioId === r.id)
+          ? d.membresias.map((m) => (m.familiaId === familia.id && m.usuarioId === r.id ? { ...m, rol: "persona" as const } : m))
+          : [...d.membresias, { id: uid("mb"), familiaId: familia.id, usuarioId: r.id, rol: "persona" as const, parentesco: "Persona cuidada", principal: false, estado: ESTADO_INVITACION, desde: fechaISO(new Date()) }],
+        pacientes: d.pacientes.map((p) => (p.id === paciente.id ? { ...p, usuarioId: r.id } : p)),
+      };
+      setDb(d);
+      avisar(`${paciente.nombre} ya tiene acceso: entra con su teléfono o con el QR de la familia`);
+      return r.id;
+    },
+    registrarSentir: (x) => {
+      if (!familia || !usuario) return;
+      mutar((d) => ({ ...d, sentires: [...d.sentires, { ...x, id: uid("se"), familiaId: familia.id, fechaHora: ahoraISO(), porUsuarioId: usuario.id }] }));
+      avisar("Gracias: tu familia ya ve cómo te sientes hoy");
+    },
+    marcarMeta: (metaId) => {
+      if (!paciente) return;
+      const hoy = fechaISO(new Date());
+      mutar((d) => ({
+        ...d,
+        pacientes: d.pacientes.map((p) =>
+          p.id !== paciente.id || !p.voz
+            ? p
+            : { ...p, voz: { ...p.voz, metas: p.voz.metas.map((m) => (m.id !== metaId ? m : { ...m, hechas: m.hechas.includes(hoy) ? m.hechas.filter((x) => x !== hoy) : [...m.hechas, hoy] })) } },
+        ),
+      }));
+    },
+    registrarAporte: (actividad, horas) => {
+      if (!familia || !paciente?.usuarioId || horas <= 0) return;
+      const quien = paciente.usuarioId;
+      mutar((d) => ({
+        ...d,
+        aportes: [...d.aportes, { id: uid("ap"), familiaId: familia.id, usuarioId: quien, actividad, horas, fecha: fechaISO(new Date()) }],
+        usuarios: d.usuarios.map((u) => (u.id === quien ? { ...u, saldoHoras: u.saldoHoras + horas } : u)),
+      }));
+      avisar(`${horas} h sumadas al banco de tiempo de ${paciente.nombre}`);
+    },
+    // Mensajes dentro de la alerta: la primera respuesta cuenta como atención para la métrica.
+    responderAlerta: (alertaId, texto) => {
+      if (!familia || !usuario || !texto.trim()) return;
+      const ts = ahoraISO();
+      const a = db.alertas.find((x) => x.id === alertaId);
+      mutar((d) => ({
+        ...d,
+        alertas: d.alertas.map((x) => (x.id === alertaId ? { ...x, atendidaEn: x.atendidaEn ?? ts, respuestas: [...(x.respuestas ?? []), { porUsuarioId: usuario.id, texto: texto.trim(), fechaHora: ts }] } : x)),
+        mensajes: [...d.mensajes, { id: uid("msg"), familiaId: familia.id, de: usuario.id, tipo: "texto", fechaHora: ts, texto: `Sobre la alerta «${a?.titulo ?? ""}»: ${texto.trim()}` }],
+      }));
+      avisar("Mensaje enviado a la familia");
+    },
+    responderZarit: (respuestas) => {
+      if (!usuario) return;
+      const puntaje = respuestas.reduce((a, b) => a + b, 0);
+      mutar((d) => ({ ...d, zarit: [...d.zarit, { id: uid("z"), usuarioId: usuario.id, fecha: fechaISO(new Date()), respuestas, puntaje }] }));
+      avisar(`Escala registrada: ${puntaje} puntos`);
+    },
+    agregarEvidencia: (e) => {
+      if (!familia || !usuario) return;
+      mutar((d) => ({ ...d, evidencias: [...d.evidencias, { ...e, id: uid("ev"), familiaId: familia.id, porUsuarioId: usuario.id, fechaHora: ahoraISO() }] }));
+      avisar("Evidencia guardada; otra persona de la familia puede confirmarla");
+    },
+    confirmarEvidencia: (id) => {
+      if (!usuario) return;
+      mutar((d) => ({ ...d, evidencias: d.evidencias.map((e) => (e.id === id && e.porUsuarioId !== usuario.id ? { ...e, confirmadaPor: usuario.id, confirmadaEn: ahoraISO() } : e)) }));
+      avisar("Confirmaste el registro");
+    },
+    actualizarEquipo: (tipo, estado, de) => {
+      if (!familia) return;
+      mutar((d) => {
+        const resto = d.equipos.filter((e) => !(e.familiaId === familia.id && e.tipo === tipo));
+        return { ...d, equipos: estado ? [...resto, { id: uid("eq"), familiaId: familia.id, tipo, estado, de, desde: fechaISO(new Date()) }] : resto };
+      });
+    },
+    pedirPrestamo: (tipo, aUsuarioId) => {
+      if (!familia || !usuario) return;
+      const quien = db.usuarios.find((u) => u.id === aUsuarioId)?.nombre.split(" ")[0] ?? "la persona";
+      mutar((d) => ({
+        ...d,
+        prestamos: [...d.prestamos, { id: uid("pr"), familiaId: familia.id, tipo, aUsuarioId, deUsuarioId: usuario.id, estado: "enviada", creadaEn: ahoraISO() }],
+        mensajes: [
+          ...d.mensajes,
+          { id: uid("msg"), familiaId: familia.id, de: "asistente", tipo: "sistema", fechaHora: ahoraISO(), texto: `${usuario.nombre.split(" ")[0]} pidió prestado: ${nombreEquipo(tipo).toLowerCase()} a ${quien}. Lo acuerdan por este chat.` },
+        ],
+      }));
+      avisar(`Solicitud de préstamo enviada a ${quien}`);
+    },
+    responderPrestamo: (id, aceptar) => {
+      mutar((d) => {
+        const pr = d.prestamos.find((x) => x.id === id);
+        if (!pr) return d;
+        const presta = d.usuarios.find((u) => u.id === pr.aUsuarioId)?.nombre ?? "";
+        const eq = nombreEquipo(pr.tipo).toLowerCase();
+        return {
+          ...d,
+          prestamos: d.prestamos.map((x) => (x.id === id ? { ...x, estado: aceptar ? "aceptada" : "rechazada" } : x)),
+          equipos: aceptar
+            ? [...d.equipos.filter((e) => !(e.familiaId === pr.familiaId && e.tipo === pr.tipo)), { id: uid("eq"), familiaId: pr.familiaId, tipo: pr.tipo, estado: "prestado", de: presta, desde: fechaISO(new Date()) }]
+            : d.equipos,
+          mensajes: [
+            ...d.mensajes,
+            { id: uid("msg"), familiaId: pr.familiaId, de: "asistente", tipo: "sistema", fechaHora: ahoraISO(), texto: aceptar ? `${presta.split(" ")[0]} aceptó prestar: ${eq}.` : `${presta.split(" ")[0]} no puede prestar por ahora: ${eq}.` },
+          ],
+        };
+      });
+      avisar(aceptar ? "Aceptaste el préstamo; la familia ya lo ve" : "Préstamo rechazado");
+    },
+    guardarVideoGuia: (id, url) => {
+      mutar((d) => ({ ...d, videosGuia: { ...d.videosGuia, [id]: url.trim() } }));
+      avisar(url.trim() ? "Video de la guía guardado" : "Video quitado");
+    },
+    unirseConCodigo: (codigo, como) => {
+      const fam = db.familias.find((f) => f.codigo && f.codigo.toUpperCase() === codigo.trim().toUpperCase());
+      if (!fam) return null;
+      let d = db;
+      let usuarioId: Id;
+      if ("usuarioId" in como) {
+        usuarioId = como.usuarioId;
+      } else {
+        const r = asegurarPerfil(d, { nombre: como.nuevo.nombre, telefono: como.nuevo.telefono, genero: como.nuevo.genero });
+        d = r.d;
+        usuarioId = r.id;
+        d = { ...d, usuarios: d.usuarios.map((u) => (u.id === usuarioId && !u.alcaldia ? { ...u, alcaldia: fam.alcaldia, ubicacion: { lat: fam.hogar.lat, lng: fam.hogar.lng } } : u)) };
+      }
+      const existente = d.membresias.find((m) => m.familiaId === fam.id && m.usuarioId === usuarioId);
+      const parentesco = "nuevo" in como ? como.nuevo.parentesco || "Familiar" : "Familiar";
+      d = {
+        ...d,
+        membresias: existente
+          ? d.membresias.map((m) => (m.id === existente.id ? { ...m, estado: "activa" } : m))
+          : [...d.membresias, { id: uid("mb"), familiaId: fam.id, usuarioId, rol: "cuidado", parentesco, principal: false, estado: "activa", desde: fechaISO(new Date()) }],
+      };
+      setDb(d);
+      setSesion({ usuarioId, familiaId: fam.id });
+      avisar(`Entraste al espacio ${fam.nombre}`);
+      return fam.id;
     },
     actualizarPaciente: (p) => {
       if (!paciente) return;

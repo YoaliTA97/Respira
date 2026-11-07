@@ -4,7 +4,8 @@ import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Centros } from "@/components/Centros";
 import { Logo } from "@/components/Logo";
-import { btnDanger } from "@/components/ui";
+import { SIDECU } from "@/lib/catalogos";
+import { btnDanger, btnPrimary } from "@/components/ui";
 
 // Página pública que abre el enlace del WhatsApp de alerta: no requiere sesión.
 function Contenido() {
@@ -24,8 +25,12 @@ function Contenido() {
           <h1 className="text-2xl font-semibold tracking-tight">{persona} necesita atención fuera de casa</h1>
           <p className="text-sm text-ink-2">Elijan entre la familia el centro más adecuado. Si no responde o le cuesta respirar, llamen al 911.</p>
         </div>
-        <a href="tel:911" className={btnDanger}>Llamar al 911</a>
+        <div className="flex flex-wrap gap-2">
+          <a href={SIDECU.url} target="_blank" rel="noopener noreferrer" className={btnPrimary}>Ubicar centro en {SIDECU.nombre}</a>
+          <a href="tel:911" className={btnDanger}>Llamar al 911</a>
+        </div>
       </section>
+      <p className="text-sm text-muted">Vista previa de los centros más cercanos al hogar (datos del DENUE). El mapa oficial de centros de cuidado es el de {SIDECU.nombre}.</p>
       <Centros hogar={{ lat, lng }} />
     </div>
   );

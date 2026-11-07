@@ -3,8 +3,9 @@
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useData } from "@/lib/db";
-import { TUTORIALES, type Tutorial } from "@/lib/catalogos";
+import { GUIAS_MEDICAS, TUTORIALES, type Tutorial } from "@/lib/catalogos";
 import { completados, estadoCertificaciones, horasCuidado, tutorialesRecomendados } from "@/lib/calculos";
+import { GuiaModal } from "@/components/GuiaVideo";
 import { TechTag } from "@/components/TechTag";
 import { Encabezado, Modal, Pill, Tarjeta, btnPrimary, btnSecondary } from "@/components/ui";
 
@@ -51,6 +52,7 @@ function Capacitacion() {
   const { db, ahora, usuario, familia, paciente, agendarCertificacion, aprobarCertificacion } = useData();
   const q = useSearchParams();
   const [abierto, setAbierto] = useState<string | null>(q.get("t"));
+  const [guia, setGuia] = useState<string | null>(q.get("g"));
   if (!usuario) return null;
   const hechos = completados(db, usuario.id);
   const recomendados = tutorialesRecomendados(db, familia?.id ?? null);
@@ -85,6 +87,29 @@ function Capacitacion() {
             </>
           )}
         </Tarjeta>
+      </TechTag>
+
+      <TechTag k="guias-medicas" className="mt-4">
+        <section id="guias" className="flex flex-col gap-3 rounded-2xl border border-line bg-white p-5">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-[15px] font-semibold">Guías del médico: cómo medir y valorar en casa</h2>
+            <p className="text-sm text-muted">Videos cortos de un médico aliado para validar el estado de salud: uso del baumanómetro, glucómetro y oxímetro, y cómo valorar el estado de conciencia.</p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {GUIAS_MEDICAS.map((g) => (
+              <button key={g.id} type="button" onClick={() => setGuia(g.id)} className="flex flex-col gap-2 rounded-xl border border-line bg-white p-3 text-left transition hover:border-primario">
+                <span className="grid aspect-video place-items-center rounded-lg bg-realce">
+                  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#2e3f8f" strokeWidth="1.6" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M10 8.5v7l6-3.5z" fill="#2e3f8f" /></svg>
+                </span>
+                <span className="text-sm font-semibold leading-snug">{g.titulo}</span>
+                <span className="flex items-center justify-between gap-2 text-xs text-muted">
+                  {g.minutos} min
+                  {db.videosGuia[g.id] ? <Pill tono="green">Video listo</Pill> : <Pill tono="outline">Video por entregar</Pill>}
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
       </TechTag>
 
       <TechTag k="certificaciones" className="mt-4">
@@ -153,6 +178,7 @@ function Capacitacion() {
       </TechTag>
 
       {tAbierto && <TutorialModal key={tAbierto.id} t={tAbierto} onCerrar={() => setAbierto(null)} />}
+      {guia && GUIAS_MEDICAS.some((g) => g.id === guia) && <GuiaModal key={guia} id={guia} onCerrar={() => setGuia(null)} />}
     </>
   );
 }

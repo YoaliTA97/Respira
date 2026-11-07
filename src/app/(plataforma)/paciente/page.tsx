@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useData } from "@/lib/db";
 import { condicionCatalogo } from "@/lib/catalogos";
 import { fechaISO } from "@/lib/seed";
+import { puedeVerHistorial } from "@/lib/calculos";
 import type { Umbrales } from "@/lib/types";
 import { CamposCondicion } from "@/components/CamposCondicion";
 import { RequiereFamilia } from "@/components/RequiereFamilia";
@@ -11,7 +12,7 @@ import { TechTag } from "@/components/TechTag";
 import { Encabezado, NivelPill, Pill, Tarjeta, Vacio, btnPrimary, btnSecondary, input, label } from "@/components/ui";
 
 function PacienteVista() {
-  const { db, ahora, paciente, familia, puede, actualizarPaciente, agregarMedicamento, quitarMedicamento, marcarToma } = useData();
+  const { db, ahora, usuario, paciente, familia, puede, actualizarPaciente, agregarMedicamento, quitarMedicamento, marcarToma } = useData();
   const [u, setU] = useState<Umbrales | null>(paciente?.umbrales ?? null);
   const [med, setMed] = useState({ nombre: "", dosis: "", horarios: "08:00", indicaciones: "" });
   if (!paciente || !familia || !u) return null;
@@ -19,7 +20,8 @@ function PacienteVista() {
   const registra = puede("registrar");
   const hoy = fechaISO(ahora);
   const meds = db.medicamentos.filter((m) => m.familiaId === familia.id);
-  const lecturas = db.lecturas.filter((l) => l.familiaId === familia.id).sort((a, b) => (a.fechaHora < b.fechaHora ? 1 : -1));
+  const verHist = puedeVerHistorial(paciente, usuario?.id);
+  const lecturas = db.lecturas.filter((l) => verHist && l.familiaId === familia.id).sort((a, b) => (a.fechaHora < b.fechaHora ? 1 : -1));
   const propias = paciente.condiciones.filter((c) => !condicionCatalogo(c));
   const fila = (k: keyof Umbrales, t: string, conMin: boolean) => (
     <div className="grid grid-cols-[1fr_88px_88px] items-center gap-2 text-sm">
@@ -54,6 +56,34 @@ function PacienteVista() {
               </ul>
             </div>
             {!admin && <p className="text-xs text-muted">Solo quien coordina puede cambiar la condición, los signos y las alergias.</p>}
+          </Tarjeta>
+        </TechTag>
+
+        <TechTag k="historia-clinica">
+          <Tarjeta titulo="Historia clínica y servicios de salud" accion={<a href="/valoracion" className="text-sm font-medium text-muted">Actualizar</a>}>
+            {!verHist ? (
+              <Vacio>{paciente.nombre} no comparte su historial contigo por ahora.</Vacio>
+            ) : paciente.historia ? (
+              <div className="flex flex-col gap-1.5 text-sm">
+                <span><span className="font-semibold">Antecedentes:</span> {paciente.historia.antecedentes.join(", ") || "—"}</span>
+                <span><span className="font-semibold">Usa:</span> {paciente.historia.dispositivos.join(", ") || "—"}</span>
+                {paciente.historia.notas && <span className="text-ink-2">{paciente.historia.notas}</span>}
+              </div>
+            ) : (
+              <Vacio>Sin historia clínica. Se registra en la valoración en checklist.</Vacio>
+            )}
+            {paciente.servicios && (
+              <div className="flex flex-col gap-1.5 border-t border-line-soft pt-3 text-sm">
+                <span><span className="font-semibold">Afiliación:</span> {paciente.servicios.afiliacion.join(", ") || "—"} · {paciente.servicios.unidad || "unidad sin registrar"}</span>
+                <span><span className="font-semibold">Última consulta:</span> {paciente.servicios.ultimaConsulta || "—"} · Medicamentos: {paciente.servicios.medicamentosDe || "—"}</span>
+                <span className="flex flex-wrap gap-1.5">
+                  {paciente.servicios.urgencias3m && <Pill tono="amber">Fue a urgencias en 3 meses</Pill>}
+                  {paciente.servicios.citaPendiente && <Pill>Cita pendiente</Pill>}
+                  {paciente.servicios.recetaVigente === false && <Pill tono="amber">Receta vencida</Pill>}
+                </span>
+              </div>
+            )}
+            {paciente.historia && <p className="text-xs text-muted">Actualizada el {paciente.historia.actualizada}.</p>}
           </Tarjeta>
         </TechTag>
 
@@ -130,6 +160,7 @@ function PacienteVista() {
 
         <TechTag k="historial">
           <Tarjeta titulo="Historial de signos">
+            {!verHist && <Vacio>{paciente.nombre} no comparte su historial contigo por ahora. Lo decide en su sección Mi voz.</Vacio>}
             {lecturas.length === 0 && <Vacio>Sin lecturas.</Vacio>}
             <ul className="flex max-h-[420px] flex-col divide-y divide-line-soft overflow-y-auto">
               {lecturas.map((l) => (

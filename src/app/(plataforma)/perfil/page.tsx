@@ -8,7 +8,8 @@ import { ROLES_INTERES, SUGERENCIAS_EXPERIENCIA, SUGERENCIAS_ROL } from "@/lib/c
 import type { Usuario } from "@/lib/types";
 import { DisponibilidadEditor } from "@/components/Disponibilidad";
 import { TechTag } from "@/components/TechTag";
-import { Avatar, Encabezado, Etiquetas, Pill, Tarjeta, Vacio, btnPrimary, input, label } from "@/components/ui";
+import { ZaritModal } from "@/components/Zarit";
+import { Avatar, Encabezado, Etiquetas, Pill, Tarjeta, Vacio, btnPrimary, btnSecondary, input, label } from "@/components/ui";
 
 const MODALIDADES: Usuario["ofreceAyuda"]["modalidades"] = ["intercambio de horas", "pago", "programa de apoyo"];
 
@@ -19,6 +20,7 @@ export default function Perfil() {
   const [experiencia, setExperiencia] = useState<string[]>(usuario?.experiencia ?? []);
   const [disp, setDisp] = useState(usuario?.disponibilidad ?? {});
   const [ayuda, setAyuda] = useState(usuario?.ofreceAyuda);
+  const [zarit, setZarit] = useState(false);
   if (!usuario || !ayuda) return null;
 
   const habs = habilidades(db, usuario.id);
@@ -29,7 +31,16 @@ export default function Perfil() {
 
   return (
     <>
-      <Encabezado sub="Tu perfil es tuyo: lo llevas a cualquier espacio familiar y a la red" titulo="Mi perfil" />
+      <Encabezado
+        sub="Tu perfil es tuyo: lo llevas a cualquier espacio familiar y a la red"
+        titulo="Mi perfil"
+        acciones={
+          <>
+            <button type="button" className={btnSecondary} onClick={() => setZarit(true)}>¿Cómo estás tú? (Zarit)</button>
+            <Link href="/cv" className={btnPrimary}>Ver mi CV de cuidado</Link>
+          </>
+        }
+      />
       <div className="grid gap-4 lg:grid-cols-3">
         <TechTag k="perfil" className="lg:col-span-2">
           <Tarjeta titulo="Datos">
@@ -130,6 +141,7 @@ export default function Perfil() {
           </Tarjeta>
         </TechTag>
       </div>
+      {zarit && <ZaritModal onCerrar={() => setZarit(false)} />}
     </>
   );
 }
