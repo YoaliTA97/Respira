@@ -29,10 +29,14 @@ export type Usuario = {
   disponibilidad: Disponibilidad;
   ofreceAyuda: { activo: boolean; radioKm: number; modalidades: ("intercambio de horas" | "pago" | "programa de apoyo")[]; tarifaHora: number };
   saldoHoras: number; // banco de horas: + horas que le deben
+  aceptoTerminos?: string; // fecha en que aceptó el uso de datos y los avisos de Respira
+  clave?: { salt: string; hash: string }; // contraseña (PBKDF2); en el MVP la maneja Supabase Auth
+  seguridadSocial?: { ruta: "independiente" | "cooperativa" | "plataforma"; desde: string; apartadoPct: number };
+  verificado?: { identidad: boolean; referencias: number }; // respaldo para dejarle el cuidado
   creadoEn: string;
 };
 
-// "persona" = la persona cuidada con acceso propio (su voz, sus decisiones y permisos).
+// "persona" = la persona mayor con acceso propio (su voz, sus decisiones y permisos).
 export type RolFamilia = "coordinacion" | "cuidado" | "apoyo" | "avisos" | "persona";
 
 export const ROL_TEXTO: Record<RolFamilia, { t: string; d: string }> = {
@@ -40,7 +44,7 @@ export const ROL_TEXTO: Record<RolFamilia, { t: string; d: string }> = {
   cuidado: { t: "Cuidado", d: "Cubre relevos, registra signos y medicación" },
   apoyo: { t: "Apoyo", d: "Cubre relevos ocasionales e intercambios" },
   avisos: { t: "Solo avisos", d: "Recibe alertas y ve el estado, sin registrar" },
-  persona: { t: "Persona cuidada", d: "Su voz: rutinas, decisiones de salud y permisos sobre sus datos" },
+  persona: { t: "Persona mayor", d: "Su voz: rutinas, decisiones de salud y permisos sobre sus datos" },
 };
 
 export type Familia = {
@@ -52,6 +56,11 @@ export type Familia = {
   creadaEn: string;
   consentimiento: { registro: boolean; alertasWhatsApp: boolean; indicadores: boolean; fecha: string };
   codigo?: string; // código de unión: va en el QR para entrar al espacio
+  // Antes de Respira: cómo se repartía el cuidado (para mostrar la transición de roles)
+  lineaBase?: { fecha: string; pctPrincipal: number; horasSemanaPrincipal: number; zarit: number; nota: string };
+  reparto?: Record<Id, number>; // cómo se reparten los gastos (porcentaje por integrante)
+  aportaDeMas?: Record<Id, boolean>; // lo que esta persona pone de más es aportación voluntaria (no se le reembolsa)
+  topeGastoMes?: number; // arriba de este monto, la familia necesita apoyo financiero
 };
 
 export type Membresia = {
@@ -88,6 +97,9 @@ export type Paciente = {
   historia?: HistoriaClinica;
   servicios?: ServiciosSalud;
   usuarioId?: Id; // su propio perfil, si tiene acceso
+  horariosSignos?: string[]; // horarios de toma de signos vitales (recordatorios)
+  umbralesDelMedico?: boolean; // si no, solo aplican las banderas rojas generales
+  revisarEnMin?: number; // "vuelve a revisar": minutos para volver a medir (lo indica el médico)
   voz?: VozPersona;
   evento: { tipo: "caida"; fecha: string; descripcion: string; lesion: string } | null;
   movilidad: "independiente" | "con apoyo" | "en cama";
@@ -118,7 +130,7 @@ export type ServiciosSalud = {
   porUsuarioId: Id;
 };
 
-// "Mi voz": la persona cuidada como agente activo.
+// "Mi voz": la persona mayor como agente activo.
 export type VozPersona = {
   palabras?: { texto: string; audio?: string; fecha: string; porUsuarioId: Id };
   gustos: string[];
@@ -127,9 +139,10 @@ export type VozPersona = {
   permisos: Record<Id, boolean>; // quién puede ver su historial; sin registro = sí
   decisiones?: { clinica: string; acompanante: string; voluntadAnticipada: boolean; documento?: string; notas: string; fecha: string };
   metas: { id: Id; texto: string; hechas: string[] }[];
+  consentimiento?: { fecha: string; porUsuarioId: Id }; // la persona acepta el uso de sus datos para su cuidado
 };
 
-// "¿Cómo me siento hoy?": lo reporta la propia persona cuidada.
+// "¿Cómo me siento hoy?": lo reporta la propia persona mayor.
 export type Sentir = { id: Id; familiaId: Id; fechaHora: string; dolor: number; animo: string; sueno: string; nota: string; porUsuarioId: Id };
 
 // "Lo que yo aporto": horas de la persona mayor que cuentan en el banco de tiempo.
@@ -182,6 +195,7 @@ export type Intercambio = {
   monto: number;
   estado: "pendiente" | "aceptado" | "rechazado";
   creadoEn: string;
+  respondidoEn?: string;
 };
 
 export type SolicitudRed = {
@@ -193,6 +207,7 @@ export type SolicitudRed = {
   monto: number;
   estado: "enviada" | "aceptada" | "rechazada";
   creadaEn: string;
+  respondidaEn?: string;
 };
 
 export type Mensaje = {
@@ -222,7 +237,7 @@ export type Alerta = {
   centroElegido?: string;
   atendidaEn?: string; // primera respuesta o atención: mide si se atendió a tiempo
   respuestas?: { porUsuarioId: Id; texto: string; fechaHora: string }[];
-  origen?: "reporte" | "panico";
+  origen?: "reporte" | "panico" | "persona"; // persona = lo pidió la propia persona mayor
   porUsuarioId?: Id;
   whatsapp?: { enviadoA: string[]; modo: "real" | "simulado"; texto: string };
 };
@@ -266,6 +281,25 @@ export type Evidencia = {
 // Escala de sobrecarga de Zarit (versión abreviada de 7 preguntas) que responde quien cuida.
 export type Zarit = { id: Id; usuarioId: Id; fecha: string; respuestas: number[]; puntaje: number };
 
+// Gastos del cuidado: medicinas, despensa, consultas, transporte... y quién paga.
+export type Gasto = {
+  id: Id;
+  familiaId: Id;
+  fecha: string;
+  categoria: string;
+  concepto: string;
+  monto: number;
+  pagoPor: Id;
+  registradoPor: Id;
+  comprobante?: string;
+};
+
+// Reseña de una familia a quien cubrió un relevo: respalda a quién se le deja el cuidado.
+export type Resena = { id: Id; aUsuarioId: Id; deUsuarioId: Id; familiaId: Id; estrellas: number; comentario: string; fecha: string };
+
+// Banco de tiempo: horas de cuidado que alguien da a otra persona de la red (sin dinero).
+export type MovimientoTiempo = { id: Id; deUsuarioId: Id; paraUsuarioId: Id; horas: number; concepto: string; fecha: string };
+
 export type ProgresoTutorial = { tutorialId: string; usuarioId: Id; completado: boolean; fecha: string; practicas: number };
 
 export type Certificacion = { id: string; usuarioId: Id; estado: "agendada" | "certificada"; cita?: string; fecha?: string };
@@ -292,5 +326,9 @@ export type DB = {
   evidencias: Evidencia[];
   zarit: Zarit[];
   sentires: Sentir[];
-  aportes: Aporte[]; // id de guía médica → enlace del video
+  notifVistas: Record<Id, string[]>; // notificaciones que cada persona ya vio
+  aportes: Aporte[];
+  gastos: Gasto[];
+  resenas: Resena[];
+  banco: MovimientoTiempo[]; // id de guía médica → enlace del video
 };

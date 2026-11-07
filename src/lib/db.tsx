@@ -4,9 +4,10 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { SIDECU, UMBRALES_BASE, nombreEquipo } from "./catalogos";
 import { familiasDe, integrantes as integrantesDe, planInicialRelevos, relevoActual, type Integrante } from "./calculos";
 import { evaluar, extraerMedicion, respuestaPorReglas, type Evaluacion, type Medicion, type Senal } from "./reglas";
-import { CODIGO_DEMO, DB_VERSION, FAMILIA_DEMO, crearSeed, fechaISO } from "./seed";
+import { CODIGO_DEMO, DB_VERSION, DEMO_ANTERIOR, FAMILIA_DEMO, crearSeed, fechaISO } from "./seed";
+import { crearHash, verificarClave } from "./clave";
 import type {
-  Alerta, DB, Equipo, Evidencia, Familia, HistoriaClinica, Id, Intercambio, ServiciosSalud, Sentir, VozPersona, LecturaSignos, Medicamento, Membresia, Mensaje, Paciente, RolFamilia, SignoId, SolicitudRed, Tono, Usuario,
+  Alerta, DB, Equipo, Evidencia, Familia, Gasto, HistoriaClinica, Id, Intercambio, ServiciosSalud, Sentir, VozPersona, LecturaSignos, Medicamento, Membresia, Mensaje, Paciente, RolFamilia, SignoId, SolicitudRed, Tono, Usuario,
 } from "./types";
 
 // Capa de datos. Cada acción corresponde a una operación del backend del MVP (Supabase con
@@ -18,11 +19,17 @@ import type {
 const ACEPTAR_INVITACIONES = true;
 const ESTADO_INVITACION: Membresia["estado"] = ACEPTAR_INVITACIONES ? "activa" : "invitada";
 const LS_DB = "respira-db";
-const LS_ULTIMA = "respira-ultima-sesion"; // para volver a entrar sin iniciar sesión al reabrir
+const LS_ULTIMA = "respira-ultima-sesion"; // "recordarme": volver a entrar sin contraseña al reabrir (vence)
+const LS_INTENTOS = "respira-intentos"; // intentos fallidos por teléfono (bloqueo temporal)
+const RECORDAR_HORAS = 12;
+const MAX_INTENTOS = 5;
+const BLOQUEO_MIN = 5;
+
+export type ResultadoAcceso = "ok" | "no-existe" | "sin-clave" | "error" | "bloqueada" | "codigo";
 const SS_SESION = "respira-sesion";
 const LS_TECH = "respira-capa-tecnica";
 const TONOS: Tono[] = ["t1", "t2", "t3", "t4", "t5"];
-const CENTRO_CDMX = { lat: 19.3135, lng: -99.146 };
+const CENTRO_CDMX = { lat: 19.3567, lng: -99.0599 }; // Iztapalapa (punto de ejemplo)
 
 const uid = (p: string) => `${p}-${crypto.randomUUID().slice(0, 8)}`;
 // Código de unión para el QR: 3 letras del nombre + 3 dígitos (p. ej. RAM315).
@@ -36,7 +43,7 @@ const ahoraISO = () => {
 };
 const soloDigitos = (t: string) => t.replace(/\D/g, "");
 
-export type PerfilNuevo = Pick<Usuario, "nombre" | "telefono" | "genero" | "alcaldia" | "roles" | "experiencia" | "disponibilidad" | "ofreceAyuda" | "bio">;
+export type PerfilNuevo = Pick<Usuario, "nombre" | "telefono" | "genero" | "alcaldia" | "roles" | "experiencia" | "disponibilidad" | "ofreceAyuda" | "bio" | "aceptoTerminos" | "clave">;
 
 export type InvitacionNueva = { nombre: string; telefono: string; parentesco: string; rol: RolFamilia; principal: boolean; genero: Usuario["genero"] };
 
@@ -50,7 +57,7 @@ export type ValoracionNueva = {
   evidencias: { descripcion: string; foto: string }[];
 };
 
-export type UnionNueva = { nombre: string; telefono: string; genero: Usuario["genero"]; parentesco: string };
+export type UnionNueva = { nombre: string; telefono: string; genero: Usuario["genero"]; parentesco: string; clave?: Usuario["clave"] };
 
 export type FamiliaNueva = {
   nombre: string;
@@ -82,12 +89,18 @@ type Ctx = {
   avisar: (t: string) => void;
   setCapaTecnica: (on: boolean) => void;
   // sesión y perfil
-  iniciarSesion: (telefono: string, codigo: string) => boolean;
+  iniciarSesion: (telefono: string, clave: string, recordar?: boolean) => Promise<ResultadoAcceso>;
+  crearClave: (telefono: string, codigo: string, clave: string, recordar?: boolean) => Promise<ResultadoAcceso>;
+  cambiarClave: (actual: string, nueva: string) => Promise<boolean>;
+  minutosBloqueo: (telefono: string) => number;
   cerrarSesion: () => void;
   cambiarFamilia: (familiaId: Id | null) => void;
   crearCuenta: (p: PerfilNuevo) => void;
   actualizarPerfil: (p: Partial<Usuario>) => void;
   reiniciarDemo: () => void;
+  borrarTodo: () => void;
+  simularSeisMeses: () => void;
+  borrarMiHistorial: () => void;
   // espacio familiar
   crearFamilia: (f: FamiliaNueva) => void;
   responderInvitacion: (membresiaId: Id, aceptar: boolean) => void;
@@ -109,7 +122,14 @@ type Ctx = {
   panico: (motivo: string, detalle: string) => Promise<void>;
   responderZarit: (respuestas: number[]) => void;
   responderAlerta: (alertaId: Id, texto: string) => void;
-  // Mi voz: la persona cuidada como agente activo
+  agregarGasto: (g: Omit<Gasto, "id" | "familiaId" | "registradoPor">) => void;
+  quitarGasto: (id: Id) => void;
+  calificar: (aUsuarioId: Id, estrellas: number, comentario: string) => void;
+  guardarReparto: (reparto: Record<Id, number>) => void;
+  configurarGastos: (c: { topeGastoMes?: number; aportaDeMas?: Record<Id, boolean> }) => void;
+  pedirCuidado: (pedido: string, detalle: string) => Promise<void>;
+  marcarNotificaciones: (ids: string[]) => void;
+  // Mi voz: la persona mayor como agente activo
   guardarVoz: (v: Partial<VozPersona>) => void;
   darAccesoPersona: (telefono: string) => Id | null;
   registrarSentir: (s: Pick<Sentir, "dolor" | "animo" | "sueno" | "nota">) => void;
@@ -126,7 +146,7 @@ type Ctx = {
   guardarVideoGuia: (id: string, url: string) => void;
   // unión al espacio con código o QR
   unirseConCodigo: (codigo: string, como: { usuarioId: Id } | { nuevo: UnionNueva }) => Id | null;
-  // persona cuidada y medicación
+  // persona mayor y medicación
   actualizarPaciente: (p: Partial<Paciente>) => void;
   agregarMedicamento: (m: Omit<Medicamento, "id" | "familiaId">) => void;
   quitarMedicamento: (id: Id) => void;
@@ -142,14 +162,18 @@ const DataContext = createContext<Ctx | null>(null);
 // Renueva la familia de ejemplo y conserva todo lo que se creó en este navegador
 // (familias, cuentas, registros). Se usa al cambiar de versión y al reiniciar la demo.
 function conservar(d: Partial<DB>, semilla: DB): DB {
-  const demoIds = new Set(semilla.usuarios.map((u) => u.id));
-  const ajena = (x: { familiaId: Id }) => x.familiaId !== FAMILIA_DEMO;
+  // Fuera: la familia de ejemplo actual y las de versiones anteriores. Las cuentas de ejemplo anteriores
+  // solo se quedan si alguien las usó en un espacio que creó (para no dejarlo sin integrantes).
+  const familiasDemo = new Set([FAMILIA_DEMO, ...DEMO_ANTERIOR.familias, ...(d.familias ?? []).filter((f) => f.id.startsWith("fam-demo-")).map((f) => f.id)]);
+  const ajena = (x: { familiaId: Id }) => !familiasDemo.has(x.familiaId);
+  const usadas = new Set((d.membresias ?? []).filter(ajena).map((m) => m.usuarioId));
+  const demoIds = new Set([...semilla.usuarios.map((u) => u.id), ...DEMO_ANTERIOR.usuarios.filter((id) => !usadas.has(id)), ...(d.usuarios ?? []).filter((u) => u.id.startsWith("u-demo-")).map((u) => u.id)]);
   const de = <T,>(x: T[] | undefined) => x ?? [];
   const medsAjenos = new Set(de(d.medicamentos).filter(ajena).map((m) => m.id));
   return {
     ...semilla,
     usuarios: [...semilla.usuarios, ...de(d.usuarios).filter((u) => !demoIds.has(u.id))],
-    familias: [...semilla.familias, ...de(d.familias).filter((f) => f.id !== FAMILIA_DEMO).map((f) => ({ ...f, codigo: f.codigo ?? nuevoCodigo(f.nombre) }))],
+    familias: [...semilla.familias, ...de(d.familias).filter((f) => !familiasDemo.has(f.id)).map((f) => ({ ...f, codigo: f.codigo ?? nuevoCodigo(f.nombre) }))],
     membresias: [...semilla.membresias, ...de(d.membresias).filter(ajena)],
     pacientes: [...semilla.pacientes, ...de(d.pacientes).filter(ajena)],
     medicamentos: [...semilla.medicamentos, ...de(d.medicamentos).filter(ajena)],
@@ -168,7 +192,11 @@ function conservar(d: Partial<DB>, semilla: DB): DB {
     zarit: [...semilla.zarit, ...de(d.zarit).filter((x) => !demoIds.has(x.usuarioId))],
     sentires: [...semilla.sentires, ...de(d.sentires).filter(ajena)],
     aportes: [...semilla.aportes, ...de(d.aportes).filter(ajena)],
+    gastos: [...semilla.gastos, ...de(d.gastos).filter(ajena)],
+    resenas: [...semilla.resenas, ...de(d.resenas).filter(ajena)],
+    banco: [...semilla.banco, ...de(d.banco).filter((x) => !demoIds.has(x.deUsuarioId))],
     videosGuia: { ...(d.videosGuia ?? {}) },
+    notifVistas: { ...(d.notifVistas ?? {}) },
   };
 }
 
@@ -208,7 +236,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     let s: Sesion = { usuarioId: null, familiaId: null };
     let tech = false;
     try {
-      s = JSON.parse(sessionStorage.getItem(SS_SESION) ?? "null") ?? JSON.parse(localStorage.getItem(LS_ULTIMA) ?? "null") ?? s;
+      const recordada = JSON.parse(localStorage.getItem(LS_ULTIMA) ?? "null") as (Sesion & { expira?: number }) | null;
+      const vigente = recordada && (recordada.expira ?? 0) > Date.now() ? { usuarioId: recordada.usuarioId, familiaId: recordada.familiaId } : null;
+      if (recordada && !vigente) localStorage.removeItem(LS_ULTIMA);
+      s = JSON.parse(sessionStorage.getItem(SS_SESION) ?? "null") ?? vigente ?? s;
       if (s.usuarioId) sessionStorage.setItem(SS_SESION, JSON.stringify(s));
       tech = localStorage.getItem(LS_TECH) === "1";
     } catch {
@@ -245,12 +276,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [db]);
 
-  const setSesion = useCallback((s: Sesion) => {
+  const setSesion = useCallback((s: Sesion, recordar?: boolean) => {
     setSesionState(s);
     try {
       sessionStorage.setItem(SS_SESION, JSON.stringify(s));
-      if (s.usuarioId) localStorage.setItem(LS_ULTIMA, JSON.stringify(s));
-      else localStorage.removeItem(LS_ULTIMA);
+      if (!s.usuarioId) localStorage.removeItem(LS_ULTIMA);
+      else if (recordar === true) localStorage.setItem(LS_ULTIMA, JSON.stringify({ ...s, expira: Date.now() + RECORDAR_HORAS * 3600_000 }));
+      else if (recordar === false) localStorage.removeItem(LS_ULTIMA);
+      else {
+        // cambio de espacio: conserva el vencimiento si ya estaba recordada
+        const r = JSON.parse(localStorage.getItem(LS_ULTIMA) ?? "null") as { usuarioId: string; expira: number } | null;
+        if (r && r.usuarioId === s.usuarioId) localStorage.setItem(LS_ULTIMA, JSON.stringify({ ...s, expira: r.expira }));
+      }
     } catch {
       /* ignorar */
     }
@@ -330,7 +367,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const senales0 = Array.from(new Set([...ext.senales, ...(extra?.senales ?? [])]));
     let medicion: Medicion = { ...ext.medicion, ...(medicionManual ?? {}) };
     let ev: Evaluacion = evaluar(medicion, senales0, paciente.umbrales, paciente.condiciones, paciente.signos);
-    let respuesta = respuestaPorReglas(ev, paciente.nombre, paciente.condiciones);
+    let respuesta = respuestaPorReglas(ev, paciente.nombre, paciente.condiciones, paciente.revisarEnMin ?? 15);
     let fuente: Mensaje["fuente"] = "reglas";
     try {
       const res = await fetch("/api/asistente", {
@@ -355,6 +392,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       /* sin servidor: reglas locales */
     }
     const ts = ahoraISO();
+    // "Vuelve a revisar" que se repite o empeora en la siguiente medición (90 min) sube a alerta grave.
+    const revisarEn = paciente.revisarEnMin ?? 15;
+    const previa = d.lecturas
+      .filter((l) => l.familiaId === familia.id)
+      .sort((a, b) => (a.fechaHora < b.fechaHora ? 1 : -1))[0];
+    const minDesde = previa ? (Date.now() - new Date(previa.fechaHora).getTime()) / 60000 : Infinity;
+    if (ev.nivel === "amarillo" && previa && previa.nivel !== "verde" && minDesde <= 90) {
+      ev = {
+        ...ev, nivel: "rojo", titulo: "Alerta grave: se repite o empeora al volver a medir",
+        motivo: `${ev.motivo} En la medición anterior ya había que volver a revisar. Lo que necesita excede lo que se puede atender en casa.`,
+        acciones: Array.from(new Set([...ev.acciones, "911" as const, "centros" as const])), notificarFamilia: true,
+      };
+      respuesta = respuestaPorReglas(ev, paciente.nombre, paciente.condiciones, revisarEn);
+    } else if (ev.nivel === "amarillo" && !respuesta.includes("Vuelve a medir")) {
+      respuesta = `${respuesta} Vuelve a medir en ${revisarEn} minutos; si se repite o empeora, Respira lanza la alerta grave.`;
+    }
     const hayDatos = Object.values(medicion).some((v) => v !== undefined) || ev.senales.length > 0 || !!extra?.sintomas?.length;
     const lectura: LecturaSignos | null = hayDatos
       ? {
@@ -384,7 +437,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       relevos: actual ? x.relevos.map((r) => (r.id === actual.id && !r.recibidoEn ? { ...r, recibidoEn: ts } : r)) : x.relevos,
       progreso: x.progreso.map((p) => (p.usuarioId === usuario.id && practicas.has(p.tutorialId) ? { ...p, practicas: p.practicas + 1 } : p)),
     }));
-    if (alerta && ev.notificarFamilia && familia.consentimiento.alertasWhatsApp) await notificarWhatsApp(alerta, familia, paciente);
+    // Alerta grave: WhatsApp a toda la red familiar; las demás alertas, a los principales
+    if (alerta && ev.notificarFamilia && familia.consentimiento.alertasWhatsApp) await notificarWhatsApp(alerta, familia, paciente, { todos: alerta.nivel === "rojo" });
     setProcesando(false);
     return lectura?.id ?? null;
   };
@@ -401,6 +455,32 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     };
     return { d: { ...d, usuarios: [...d.usuarios, nuevo] }, id };
   };
+
+  // Bloqueo temporal tras varios intentos fallidos (por teléfono, en este dispositivo)
+  const leerIntentos = (): Record<string, { n: number; hasta: number }> => {
+    try {
+      return JSON.parse(localStorage.getItem(LS_INTENTOS) ?? "{}");
+    } catch {
+      return {};
+    }
+  };
+  function minutosBloqueo(tel: string) {
+    const r = leerIntentos()[tel];
+    return r && r.hasta > Date.now() ? Math.ceil((r.hasta - Date.now()) / 60000) : 0;
+  }
+  function registrarIntento(tel: string, ok: boolean) {
+    const t = leerIntentos();
+    if (ok) delete t[tel];
+    else {
+      const n = (t[tel]?.n ?? 0) + 1;
+      t[tel] = n >= MAX_INTENTOS ? { n: 0, hasta: Date.now() + BLOQUEO_MIN * 60000 } : { n, hasta: 0 };
+    }
+    try {
+      localStorage.setItem(LS_INTENTOS, JSON.stringify(t));
+    } catch {
+      /* ignorar */
+    }
+  }
 
   const ctx: Ctx = {
     db,
@@ -425,12 +505,45 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         /* ignorar */
       }
     },
-    iniciarSesion: (telefono, codigo) => {
-      const u = db.usuarios.find((x) => x.telefono === soloDigitos(telefono));
-      if (!u || codigo !== CODIGO_DEMO) return false;
-      setSesion({ usuarioId: u.id, familiaId: familiasDe(db, u.id)[0]?.familia.id ?? null });
+    iniciarSesion: async (telefono, clave, recordar = true) => {
+      const tel = soloDigitos(telefono);
+      const u = db.usuarios.find((x) => x.telefono === tel);
+      if (!u) return "no-existe";
+      if (!u.clave) return "sin-clave";
+      if (minutosBloqueo(tel) > 0) return "bloqueada";
+      if (!(await verificarClave(clave, u.clave))) {
+        registrarIntento(tel, false);
+        return minutosBloqueo(tel) > 0 ? "bloqueada" : "error";
+      }
+      registrarIntento(tel, true);
+      setSesion({ usuarioId: u.id, familiaId: familiasDe(db, u.id)[0]?.familia.id ?? null }, recordar);
+      return "ok";
+    },
+    // Crear o recuperar contraseña: se verifica con un código que en el MVP llega por WhatsApp o SMS.
+    crearClave: async (telefono, codigo, clave, recordar = true) => {
+      const tel = soloDigitos(telefono);
+      const u = db.usuarios.find((x) => x.telefono === tel);
+      if (!u) return "no-existe";
+      if (minutosBloqueo(tel) > 0) return "bloqueada";
+      if (codigo.trim() !== CODIGO_DEMO) {
+        registrarIntento(tel, false);
+        return "codigo";
+      }
+      registrarIntento(tel, true);
+      const h = await crearHash(clave);
+      mutar((d) => ({ ...d, usuarios: d.usuarios.map((x) => (x.id === u.id ? { ...x, clave: h } : x)) }));
+      setSesion({ usuarioId: u.id, familiaId: familiasDe(db, u.id)[0]?.familia.id ?? null }, recordar);
+      return "ok";
+    },
+    cambiarClave: async (actual, nueva) => {
+      if (!usuario) return false;
+      if (usuario.clave && !(await verificarClave(actual, usuario.clave))) return false;
+      const h = await crearHash(nueva);
+      mutar((d) => ({ ...d, usuarios: d.usuarios.map((x) => (x.id === usuario.id ? { ...x, clave: h } : x)) }));
+      avisar("Contraseña actualizada");
       return true;
     },
+    minutosBloqueo: (telefono) => minutosBloqueo(soloDigitos(telefono)),
     cerrarSesion: () => setSesion({ usuarioId: null, familiaId: null }),
     cambiarFamilia: (familiaId) => setSesion({ usuarioId: sesion.usuarioId, familiaId }),
     crearCuenta: (p) => {
@@ -441,12 +554,86 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         id, ...p, telefono: tel, ubicacion: existente?.ubicacion ?? CENTRO_CDMX, tono: existente?.tono ?? TONOS[db.usuarios.length % TONOS.length], saldoHoras: existente?.saldoHoras ?? 0, creadoEn: existente?.creadoEn ?? ahoraISO(),
       };
       mutar((d) => ({ ...d, usuarios: existente ? d.usuarios.map((u) => (u.id === id ? perfil : u)) : [...d.usuarios, perfil] }));
-      setSesion({ usuarioId: id, familiaId: null });
+      setSesion({ usuarioId: id, familiaId: null }, true);
     },
     actualizarPerfil: (p) => {
       if (!usuario) return;
       mutar((d) => ({ ...d, usuarios: d.usuarios.map((u) => (u.id === usuario.id ? { ...u, ...p } : u)) }));
       avisar("Perfil actualizado");
+    },
+    // Deja solo el caso de ejemplo: borra lo creado en este navegador y cierra la sesión.
+    borrarTodo: () => {
+      setDb(crearSeed(new Date()));
+      setSesion({ usuarioId: null, familiaId: null });
+      avisar("Listo: solo queda el caso de ejemplo");
+    },
+    // "Seis meses después" (cierre del pitch): Sara certificada y con IMSS, cuida a dos vecinas;
+    // Doreen cumple su meta de caminar; la red de Doreen pasa de 3 a 14 personas. Solo datos de ejemplo.
+    simularSeisMeses: () => {
+      const hoyD = new Date();
+      const f = (n: number) => fechaISO(new Date(hoyD.getTime() + n * 86400000));
+      mutar((d) => {
+        if (d.familias.some((x) => x.id === "fam-demo-mago")) return d;
+        const fam = d.familias.find((x) => x.id === FAMILIA_DEMO);
+        if (!fam) return d;
+        const H = fam.hogar;
+        const base = (id: string, nombre: string, tel: string, genero: Usuario["genero"], bio: string, dLat: number, dLng: number, extra: Partial<Usuario> = {}): Usuario => ({
+          id, nombre, telefono: tel, genero, alcaldia: "Iztapalapa", ubicacion: { lat: H.lat + dLat, lng: H.lng + dLng }, bio, tono: "t4", roles: [], experiencia: [], disponibilidad: {},
+          ofreceAyuda: { activo: false, radioKm: 2, modalidades: ["intercambio de horas"], tarifaHora: 0 }, saldoHoras: 0, creadoEn: `${f(-150)}T10:00:00`, aceptoTerminos: `${f(-150)}T10:00:00`, ...extra,
+        });
+        const ayuda = (radioKm: number, modalidades: Usuario["ofreceAyuda"]["modalidades"]) => ({ activo: true, radioKm, modalidades, tarifaHora: 90 });
+        const nuevos: Usuario[] = [
+          base("u-demo-chayo", "Chayo Medina", "5510000101", "mujer", "Vecina de la cuadra. Cuido mañanas con horas del banco de tiempo.", 0.002, -0.001, { ofreceAyuda: ayuda(1, ["intercambio de horas"]), verificado: { identidad: true, referencias: 1 } }),
+          base("u-demo-tonita", "Toñita Ruiz", "5510000102", "mujer", "Vecina de don Luis. Acompaño a consultas.", -0.0015, 0.002, { ofreceAyuda: ayuda(1, ["intercambio de horas"]), verificado: { identidad: true, referencias: 1 } }),
+          base("u-demo-brenda", "Brenda Salas", "5510000103", "mujer", "Cuidadora certificada (EC0669).", 0.009, -0.008, { ofreceAyuda: ayuda(4, ["pago"]), verificado: { identidad: true, referencias: 3 }, seguridadSocial: { ruta: "independiente", desde: f(-120), apartadoPct: 10 } }),
+          base("u-demo-rafa", "Rafa Ortega", "5510000104", "hombre", "Vecino. Llevo a consultas en mi auto.", 0.004, 0.003, { ofreceAyuda: ayuda(2, ["intercambio de horas"]), verificado: { identidad: true, referencias: 1 } }),
+          base("u-demo-ximena", "Ximena Flores", "5510000105", "mujer", "Nieta de la red: aprende a tejer con doña Doreen.", 0.003, 0.001),
+          base("u-demo-sofia", "Sofía Flores", "5510000106", "mujer", "Nieta de la red: aprende a tejer con doña Doreen.", 0.003, 0.0012),
+          base("u-demo-mago", "Margarita López", "5510000107", "mujer", "Doña Mago, vecina de la colonia. La cuida Sara.", 0.005, -0.004),
+          base("u-demo-tere", "Teresa Vega", "5510000108", "mujer", "Doña Tere, vecina de la colonia. La cuida Sara.", -0.004, -0.003),
+        ];
+        const familias = [
+          { ...fam, id: "fam-demo-mago", nombre: "Familia de doña Mago", creadaPor: "u-demo-mago", codigo: "MAG101", lineaBase: undefined, reparto: undefined },
+          { ...fam, id: "fam-demo-tere", nombre: "Familia de doña Tere", creadaPor: "u-demo-tere", codigo: "TER102", lineaBase: undefined, reparto: undefined },
+        ];
+        // Relevos pagados de Sara con las dos vecinas en las últimas 4 semanas
+        const relevos = Array.from({ length: 8 }, (_, k) => ({
+          id: `r-demo-${k}`, familiaId: k % 2 ? "fam-demo-tere" : "fam-demo-mago", fecha: f(-2 - k * 3), inicio: 9, horas: 4, asignadoA: "u-sara", origen: "red" as const,
+        }));
+        const solicitudes = relevos.map((r, k) => ({ id: `s-demo-${k}`, familiaId: r.familiaId, relevoId: r.id, usuarioId: "u-sara", pago: "pago" as const, monto: 400, estado: "aceptada" as const, creadaEn: `${r.fecha}T08:00:00`, respondidaEn: `${r.fecha}T08:10:00` }));
+        const banco = [
+          { id: "bt-demo-1", deUsuarioId: "u-doreen", paraUsuarioId: "u-demo-ximena", horas: 2, concepto: "Clase de tejido", fecha: f(-10) },
+          { id: "bt-demo-2", deUsuarioId: "u-doreen", paraUsuarioId: "u-demo-sofia", horas: 2, concepto: "Clase de tejido", fecha: f(-10) },
+          { id: "bt-demo-3", deUsuarioId: "u-sara", paraUsuarioId: "u-demo-mago", horas: 4, concepto: "Acompañó a doña Mago", fecha: f(-20) },
+          { id: "bt-demo-4", deUsuarioId: "u-sara", paraUsuarioId: "u-demo-tere", horas: 4, concepto: "Acompañó a doña Tere", fecha: f(-18) },
+        ];
+        return {
+          ...d,
+          usuarios: [...d.usuarios.map((u) => (u.id === "u-sara" ? { ...u, seguridadSocial: { ruta: "independiente" as const, desde: f(-60), apartadoPct: 10 }, ofreceAyuda: { activo: true, radioKm: 2, modalidades: ["pago" as const, "intercambio de horas" as const], tarifaHora: 100 } } : u)), ...nuevos],
+          familias: [...d.familias, ...familias],
+          relevos: [...d.relevos, ...relevos],
+          solicitudes: [...d.solicitudes, ...solicitudes],
+          banco: [...d.banco, ...banco],
+          certificaciones: [...d.certificaciones.filter((c) => !(c.usuarioId === "u-sara" && c.id === "ec0669")), { id: "ec0669", usuarioId: "u-sara", estado: "certificada", fecha: f(-30) }],
+          resenas: [...d.resenas, { id: "rs-demo-1", aUsuarioId: "u-sara", deUsuarioId: "u-demo-mago", familiaId: "fam-demo-mago", estrellas: 5, comentario: "Sara sabe lo que hace y me trata con cariño.", fecha: f(-5) }],
+          pacientes: d.pacientes.map((p) =>
+            p.familiaId !== FAMILIA_DEMO || !p.voz ? p : { ...p, voz: { ...p.voz, metas: p.voz.metas.map((m, i) => (i === 0 ? { ...m, hechas: Array.from({ length: 30 }, (_, k) => f(-k)) } : m)) } },
+          ),
+        };
+      });
+      avisar("Seis meses después: Sara certificada, la red de Doreen creció");
+    },
+    // "Yo decido sobre mis datos": la persona mayor puede borrar su historial de salud.
+    borrarMiHistorial: () => {
+      if (!familia || !paciente) return;
+      mutar((d) => ({
+        ...d,
+        lecturas: d.lecturas.filter((l) => l.familiaId !== familia.id),
+        sentires: d.sentires.filter((s) => s.familiaId !== familia.id),
+        evidencias: d.evidencias.filter((e) => e.familiaId !== familia.id),
+        pacientes: d.pacientes.map((p) => (p.id === paciente.id ? { ...p, historia: undefined, servicios: undefined } : p)),
+      }));
+      avisar("Tu historial de salud se borró");
     },
     reiniciarDemo: () => {
       const semilla = crearSeed(new Date());
@@ -538,7 +725,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         const horas = d.relevos.find((r) => r.id === i.relevoId)?.horas ?? 0;
         return {
           ...d,
-          intercambios: d.intercambios.map((x) => (x.id === id ? { ...x, estado: aceptar ? "aceptado" : "rechazado" } : x)),
+          intercambios: d.intercambios.map((x) => (x.id === id ? { ...x, estado: aceptar ? "aceptado" : "rechazado", respondidoEn: ahoraISO() } : x)),
           relevos: aceptar ? d.relevos.map((r) => (r.id === i.relevoId ? { ...r, asignadoA: i.aUsuarioId, origen: "familia" } : r)) : d.relevos,
           usuarios:
             aceptar && i.tipo === "horas"
@@ -560,7 +747,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         if (!s) return d;
         return {
           ...d,
-          solicitudes: d.solicitudes.map((x) => (x.id === id ? { ...x, estado: aceptar ? "aceptada" : "rechazada" } : x)),
+          solicitudes: d.solicitudes.map((x) => (x.id === id ? { ...x, estado: aceptar ? "aceptada" : "rechazada", respondidaEn: ahoraISO() } : x)),
           relevos: aceptar ? d.relevos.map((r) => (r.id === s.relevoId ? { ...r, asignadoA: s.usuarioId, origen: "red" } : r)) : d.relevos,
         };
       });
@@ -687,7 +874,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         usuarios: d.usuarios.map((u) => (u.id === r.id && !u.alcaldia ? { ...u, alcaldia: familia.alcaldia, ubicacion: { lat: familia.hogar.lat, lng: familia.hogar.lng }, roles: ["Acompañamiento"] } : u)),
         membresias: d.membresias.some((m) => m.familiaId === familia.id && m.usuarioId === r.id)
           ? d.membresias.map((m) => (m.familiaId === familia.id && m.usuarioId === r.id ? { ...m, rol: "persona" as const } : m))
-          : [...d.membresias, { id: uid("mb"), familiaId: familia.id, usuarioId: r.id, rol: "persona" as const, parentesco: "Persona cuidada", principal: false, estado: ESTADO_INVITACION, desde: fechaISO(new Date()) }],
+          : [...d.membresias, { id: uid("mb"), familiaId: familia.id, usuarioId: r.id, rol: "persona" as const, parentesco: "Persona mayor", principal: false, estado: ESTADO_INVITACION, desde: fechaISO(new Date()) }],
         pacientes: d.pacientes.map((p) => (p.id === paciente.id ? { ...p, usuarioId: r.id } : p)),
       };
       setDb(d);
@@ -732,6 +919,51 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         mensajes: [...d.mensajes, { id: uid("msg"), familiaId: familia.id, de: usuario.id, tipo: "texto", fechaHora: ts, texto: `Sobre la alerta «${a?.titulo ?? ""}»: ${texto.trim()}` }],
       }));
       avisar("Mensaje enviado a la familia");
+    },
+    // La propia persona mayor pide cuidado o compañía: llega a la familia como alerta de vigilancia.
+    pedirCuidado: async (pedido, detalle) => {
+      if (!familia || !usuario || !paciente) return;
+      const ts = ahoraISO();
+      const alerta: Alerta = {
+        id: uid("a"), familiaId: familia.id, fechaHora: ts, nivel: "amarillo", titulo: `${paciente.nombre} pide: ${pedido.toLowerCase()}`,
+        motivo: `${paciente.nombre} pidió desde su cuenta: ${pedido.toLowerCase()}.${detalle.trim() ? ` ${detalle.trim()}` : ""}`, trifecta: false, estado: "activa", origen: "persona", porUsuarioId: usuario.id,
+      };
+      mutar((d) => ({
+        ...d,
+        alertas: [...d.alertas, alerta],
+        mensajes: [...d.mensajes, { id: uid("msg"), familiaId: familia.id, de: usuario.id, tipo: "texto", fechaHora: ts, texto: `${pedido}.${detalle.trim() ? ` ${detalle.trim()}` : ""}` }],
+      }));
+      if (familia.consentimiento.alertasWhatsApp) await notificarWhatsApp(alerta, familia, paciente, { encabezado: `${paciente.nombre} pide ayuda a su familia.` });
+      else avisar("Tu familia ya recibió tu pedido");
+    },
+    agregarGasto: (g) => {
+      if (!familia || !usuario) return;
+      mutar((d) => ({ ...d, gastos: [...d.gastos, { ...g, id: uid("g"), familiaId: familia.id, registradoPor: usuario.id }] }));
+      avisar(`Gasto registrado: $${g.monto.toLocaleString("es-MX")}`);
+    },
+    calificar: (aUsuarioId, estrellas, comentario) => {
+      if (!usuario || !familia) return;
+      mutar((d) => ({
+        ...d,
+        resenas: [...d.resenas.filter((r) => !(r.aUsuarioId === aUsuarioId && r.deUsuarioId === usuario.id)), { id: uid("rs"), aUsuarioId, deUsuarioId: usuario.id, familiaId: familia.id, estrellas, comentario: comentario.trim(), fecha: fechaISO(new Date()) }],
+      }));
+      avisar("Gracias: tu calificación respalda a la red");
+    },
+    quitarGasto: (id) => {
+      mutar((d) => ({ ...d, gastos: d.gastos.filter((g) => g.id !== id) }));
+    },
+    configurarGastos: (c) => {
+      if (!familia) return;
+      mutar((d) => ({ ...d, familias: d.familias.map((f) => (f.id === familia.id ? { ...f, ...c } : f)) }));
+    },
+    guardarReparto: (reparto) => {
+      if (!familia) return;
+      mutar((d) => ({ ...d, familias: d.familias.map((f) => (f.id === familia.id ? { ...f, reparto } : f)) }));
+      avisar("Reparto de gastos actualizado");
+    },
+    marcarNotificaciones: (ids) => {
+      if (!usuario) return;
+      mutar((d) => ({ ...d, notifVistas: { ...d.notifVistas, [usuario.id]: Array.from(new Set([...(d.notifVistas?.[usuario.id] ?? []), ...ids])).slice(-300) } }));
     },
     responderZarit: (respuestas) => {
       if (!usuario) return;
@@ -804,7 +1036,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         const r = asegurarPerfil(d, { nombre: como.nuevo.nombre, telefono: como.nuevo.telefono, genero: como.nuevo.genero });
         d = r.d;
         usuarioId = r.id;
-        d = { ...d, usuarios: d.usuarios.map((u) => (u.id === usuarioId && !u.alcaldia ? { ...u, alcaldia: fam.alcaldia, ubicacion: { lat: fam.hogar.lat, lng: fam.hogar.lng } } : u)) };
+        const clave = como.nuevo.clave;
+        d = {
+          ...d,
+          usuarios: d.usuarios.map((u) =>
+            u.id !== usuarioId ? u : { ...u, ...(u.alcaldia ? {} : { alcaldia: fam.alcaldia, ubicacion: { lat: fam.hogar.lat, lng: fam.hogar.lng } }), ...(clave && !u.clave ? { clave } : {}) },
+          ),
+        };
       }
       const existente = d.membresias.find((m) => m.familiaId === fam.id && m.usuarioId === usuarioId);
       const parentesco = "nuevo" in como ? como.nuevo.parentesco || "Familiar" : "Familiar";
@@ -815,7 +1053,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           : [...d.membresias, { id: uid("mb"), familiaId: fam.id, usuarioId, rol: "cuidado", parentesco, principal: false, estado: "activa", desde: fechaISO(new Date()) }],
       };
       setDb(d);
-      setSesion({ usuarioId, familiaId: fam.id });
+      setSesion({ usuarioId, familiaId: fam.id }, true);
       avisar(`Entraste al espacio ${fam.nombre}`);
       return fam.id;
     },
@@ -825,7 +1063,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         ...d,
         pacientes: d.pacientes.map((x) => (x.id === paciente.id ? { ...x, ...p } : x)),
       }));
-      avisar("Perfil de la persona cuidada actualizado");
+      avisar("Perfil de la persona mayor actualizado");
     },
     agregarMedicamento: (m) => {
       if (!familia) return;

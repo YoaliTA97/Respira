@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useData } from "@/lib/db";
-import { ACTIVIDADES_APORTE, ANIMOS, METAS_SUGERIDAS, SUENOS, telefonoLimpio } from "@/lib/catalogos";
+import { ACTIVIDADES_APORTE, ANIMOS, AVISOS, METAS_SUGERIDAS, PEDIDOS_PERSONA, SUENOS, telefonoLimpio } from "@/lib/catalogos";
 import { reducirImagen } from "@/lib/imagen";
 import { fechaISO } from "@/lib/seed";
 import type { VozPersona } from "@/lib/types";
@@ -33,8 +33,10 @@ async function aDataUrl(url?: string) {
 }
 
 function MiVoz() {
-  const { db, ahora, usuario, familia, paciente, membresia, integrantes, guardarVoz, darAccesoPersona, registrarSentir, marcarMeta, registrarAporte } = useData();
+  const { db, ahora, usuario, familia, paciente, membresia, integrantes, guardarVoz, darAccesoPersona, registrarSentir, marcarMeta, registrarAporte, pedirCuidado, borrarMiHistorial } = useData();
+  const [pedido, setPedido] = useState({ que: PEDIDOS_PERSONA[0], detalle: "" });
   const [grabar, setGrabar] = useState(false);
+  const [grabarSentir, setGrabarSentir] = useState(false);
   const [tel, setTel] = useState("");
   const [sentir, setSentir] = useState<{ dolor: number | null; animo: string; sueno: string; nota: string }>({ dolor: null, animo: "", sueno: "", nota: "" });
   const [nuevaMeta, setNuevaMeta] = useState("");
@@ -99,6 +101,34 @@ function MiVoz() {
         </p>
       )}
 
+      <TechTag k="mi-voz" className="mb-4">
+        <section className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4 ${voz.consentimiento ? "border-line bg-white" : "border-amber-ink/30 bg-amber-bg"}`}>
+          <div className="flex max-w-2xl flex-col gap-0.5">
+            <span className="text-sm font-semibold">{voz.consentimiento ? `${esElla ? "Aceptaste" : `${nombre} aceptó`} el uso de ${esElla ? "tus" : "sus"} datos para ${esElla ? "tu" : "su"} cuidado · ${voz.consentimiento.fecha.slice(0, 10)}` : `Pendiente: ${esElla ? "acepta" : `${nombre} debe aceptar`} el uso de ${esElla ? "tus" : "sus"} datos`}</span>
+            <span className="text-xs text-muted">{AVISOS.datos}</span>
+          </div>
+          {esElla && (voz.consentimiento ? (
+            <button type="button" className={btnSecondary} onClick={() => guardarVoz({ consentimiento: undefined })}>Retirar mi consentimiento</button>
+          ) : (
+            <button type="button" className={btnPrimary} onClick={() => guardarVoz({ consentimiento: { fecha: new Date().toISOString().slice(0, 19), porUsuarioId: usuario.id } })}>Acepto que mi familia use mis datos para cuidarme</button>
+          ))}
+        </section>
+      </TechTag>
+
+      {esElla && (
+        <TechTag k="notificaciones" className="mb-4">
+          <section className="flex flex-col gap-3 rounded-2xl border border-primario/30 bg-realce/50 p-5">
+            <span className="text-[15px] font-semibold">Necesito que alguien venga</span>
+            <div className="flex flex-wrap gap-2">{PEDIDOS_PERSONA.map((x) => <Chip key={x} activo={pedido.que === x} onClick={() => setPedido({ ...pedido, que: x })}>{x}</Chip>)}</div>
+            <div className="flex flex-wrap gap-2">
+              <input aria-label="Detalle del pedido" className={`${input} min-w-[220px] flex-1`} placeholder="¿Algo más? Ej. en la tarde" value={pedido.detalle} onChange={(e) => setPedido({ ...pedido, detalle: e.target.value })} />
+              <button type="button" className={btnPrimary} onClick={async () => { await pedirCuidado(pedido.que, pedido.detalle); setPedido({ que: PEDIDOS_PERSONA[0], detalle: "" }); }}>Avisar a mi familia</button>
+            </div>
+            <span className="text-xs text-muted">Le llega a tu familia como aviso y por WhatsApp. Para una emergencia usa el botón rojo de pánico.</span>
+          </section>
+        </TechTag>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-2">
         <TechTag k="mi-voz" className="lg:col-span-2">
           <Tarjeta titulo={`${yo} perfil, en ${esElla ? "mis" : "sus"} palabras`} accion={edita ? <button type="button" className="text-sm font-medium text-muted" onClick={() => setGrabar(true)}>{voz.palabras ? "Grabar de nuevo" : "Grabar nota de voz"}</button> : undefined}>
@@ -146,7 +176,11 @@ function MiVoz() {
                   <span className={label}>Sueño</span>
                   <div className="flex flex-wrap gap-1.5">{SUENOS.map((a) => <Chip key={a} activo={sentir.sueno === a} onClick={() => setSentir({ ...sentir, sueno: a })}>{a}</Chip>)}</div>
                 </div>
-                <input aria-label="Algo más" className={input} placeholder="¿Algo más que quieras contar?" value={sentir.nota} onChange={(e) => setSentir({ ...sentir, nota: e.target.value })} />
+                <div className="flex gap-2">
+                  <input aria-label="Algo más" className={input} placeholder="¿Algo más que quieras contar?" value={sentir.nota} onChange={(e) => setSentir({ ...sentir, nota: e.target.value })} />
+                  <button type="button" className={btnSecondary} onClick={() => setGrabarSentir(true)}>Contarlo con mi voz</button>
+                </div>
+                <button type="button" className="self-start text-xs font-semibold text-primario underline" onClick={() => setSentir({ dolor: 3, animo: "Bien", sueno: "Regular", nota: "Dormí poquito porque me dolía la cadera, pero ya desayuné." })}>Llenar con ejemplo</button>
                 <button
                   type="button"
                   className={`${btnPrimary} self-start`}
@@ -196,6 +230,15 @@ function MiVoz() {
                 );
               })}
             </ul>
+            {esElla && (
+              <button
+                type="button"
+                className="self-start text-sm font-semibold text-red-ink underline"
+                onClick={() => { if (window.confirm("Se borran tus signos, cómo te has sentido, las fotos de evidencia y tu historia clínica. ¿Continuar?")) borrarMiHistorial(); }}
+              >
+                Borrar mi historial de salud
+              </button>
+            )}
           </Tarjeta>
         </TechTag>
 
@@ -293,6 +336,20 @@ function MiVoz() {
           </Tarjeta>
         </TechTag>
       </div>
+
+      {grabarSentir && (
+        <Modal abierto onCerrar={() => setGrabarSentir(false)} titulo="¿Cómo me siento hoy?">
+          <p className="mb-3 text-sm text-muted">Cuéntalo con tu voz: cómo dormiste, si te duele algo y cómo te sientes.</p>
+          <NotaVoz
+            onCancelar={() => setGrabarSentir(false)}
+            onListo={(texto) => {
+              setGrabarSentir(false);
+              const d = texto.match(/dolor\D{0,12}(\d{1,2})/i);
+              setSentir({ ...sentir, nota: texto, dolor: d ? Math.min(10, Number(d[1])) : sentir.dolor });
+            }}
+          />
+        </Modal>
+      )}
 
       {grabar && (
         <Modal abierto onCerrar={() => setGrabar(false)} titulo={`${yo} perfil, en ${esElla ? "mis" : "sus"} palabras`}>

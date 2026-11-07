@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import { useData } from "@/lib/db";
-import { condicionCatalogo } from "@/lib/catalogos";
+import { HORARIOS_SIGNOS_BASE, condicionCatalogo } from "@/lib/catalogos";
 import { fechaISO } from "@/lib/seed";
-import { puedeVerHistorial } from "@/lib/calculos";
+import { puedeVerHistorial, serieSigno } from "@/lib/calculos";
+import { Linea } from "@/components/Graficas";
 import type { Umbrales } from "@/lib/types";
 import { CamposCondicion } from "@/components/CamposCondicion";
 import { RequiereFamilia } from "@/components/RequiereFamilia";
 import { TechTag } from "@/components/TechTag";
-import { Encabezado, NivelPill, Pill, Tarjeta, Vacio, btnPrimary, btnSecondary, input, label } from "@/components/ui";
+import { Encabezado, Etiquetas, NivelPill, Pill, Tarjeta, Vacio, btnPrimary, btnSecondary, input, label } from "@/components/ui";
 
 function PacienteVista() {
   const { db, ahora, usuario, paciente, familia, puede, actualizarPaciente, agregarMedicamento, quitarMedicamento, marcarToma } = useData();
@@ -37,7 +38,7 @@ function PacienteVista() {
 
   return (
     <>
-      <Encabezado sub={`${familia.nombre} · persona cuidada`} titulo={`${paciente.nombre}, ${paciente.edad} años`} />
+      <Encabezado sub={`${familia.nombre} · persona mayor`} titulo={`${paciente.nombre}, ${paciente.edad} años`} />
       <div className="grid gap-4 lg:grid-cols-2">
         <TechTag k="perfil-paciente">
           <Tarjeta titulo="Condición y lo que se vigila">
@@ -48,6 +49,18 @@ function PacienteVista() {
               </p>
             )}
             <p className="text-sm text-muted">Movilidad: {paciente.movilidad}. {paciente.notas}</p>
+            <div className="flex flex-col gap-2 border-t border-line-soft pt-3">
+              <span className="text-sm font-semibold">Horarios de toma de signos</span>
+              <Etiquetas
+                etiqueta="Horarios de toma de signos"
+                valor={paciente.horariosSignos?.length ? paciente.horariosSignos : HORARIOS_SIGNOS_BASE}
+                onChange={(v) => actualizarPaciente({ horariosSignos: [...v].filter((h) => /^\d{1,2}:\d{2}$/.test(h)).map((h) => h.padStart(5, "0")).sort() })}
+                opciones={["08:00", "14:00", "20:00"]}
+                placeholder="Otro horario, ej. 11:30"
+                disabled={!admin}
+              />
+              <span className="text-xs text-muted">Respira avisa a quien cuida cuando toca la toma y si quedó sin registrar.</span>
+            </div>
             <div className="flex flex-col gap-2 border-t border-line-soft pt-3">
               <span className="text-sm font-semibold">Prevención</span>
               <ul className="list-disc pl-5 text-sm text-ink-2">
@@ -89,7 +102,12 @@ function PacienteVista() {
 
         <TechTag k="umbrales">
           <Tarjeta titulo="Umbrales de alerta">
-            <p className="text-sm text-muted">La trifecta (frecuencia cardiaca, respiratoria y presión fuera de rango a la vez) dispara la alerta médica por WhatsApp. Valores de ejemplo: deben validarse con su médico.</p>
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input type="checkbox" className="h-4 w-4 accent-primario" disabled={!admin} checked={!!paciente.umbralesDelMedico} onChange={(e) => actualizarPaciente({ umbralesDelMedico: e.target.checked })} />
+              Estos umbrales los indicó su médico
+            </label>
+            {!paciente.umbralesDelMedico && <p className="rounded-xl bg-amber-bg p-3 text-sm text-amber-ink">Sin los umbrales de su médico, las alertas son menos precisas: solo aplican las banderas rojas generales.</p>}
+            <p className="text-sm text-muted">Respira no define umbrales: los captura la familia como los indicó su médico. Fuera de rango sin gravedad: vuelve a revisar en {paciente.revisarEnMin ?? 15} min. La trifecta o una bandera roja lanza la alerta grave.</p>
             <div className="grid grid-cols-[1fr_88px_88px] gap-2 text-xs text-muted"><span /><span className="text-center">Mínimo</span><span className="text-center">Máximo</span></div>
             {fila("fc", "Frecuencia cardiaca (lpm)", true)}
             {fila("fr", "Frecuencia respiratoria (rpm)", true)}
@@ -161,6 +179,14 @@ function PacienteVista() {
         <TechTag k="historial">
           <Tarjeta titulo="Historial de signos">
             {!verHist && <Vacio>{paciente.nombre} no comparte su historial contigo por ahora. Lo decide en su sección Mi voz.</Vacio>}
+            {verHist && (
+              <div className="flex flex-col gap-3">
+                <span className="text-xs font-semibold text-ink-2">Presión sistólica, con el rango que indicó su médico</span>
+                <Linea titulo="Presión sistólica" unidad=" mmHg" alto={140} series={[{ nombre: "Presión sistólica", puntos: serieSigno(db, familia.id, "paSist", 12) }]} banda={{ min: paciente.umbrales.paSist.min, max: paciente.umbrales.paSist.max, etiqueta: "rango de su médico" }} />
+                <span className="text-xs font-semibold text-ink-2">Pulso (lpm)</span>
+                <Linea titulo="Frecuencia cardiaca" unidad=" lpm" alto={130} series={[{ nombre: "Pulso", puntos: serieSigno(db, familia.id, "fc", 12) }]} banda={{ min: paciente.umbrales.fc.min, max: paciente.umbrales.fc.max, etiqueta: "rango de su médico" }} />
+              </div>
+            )}
             {lecturas.length === 0 && <Vacio>Sin lecturas.</Vacio>}
             <ul className="flex max-h-[420px] flex-col divide-y divide-line-soft overflow-y-auto">
               {lecturas.map((l) => (

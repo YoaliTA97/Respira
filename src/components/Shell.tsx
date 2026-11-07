@@ -7,7 +7,10 @@ import { useData } from "@/lib/db";
 import { relevoActual } from "@/lib/calculos";
 import { SECCION_DE_RUTA, acceso } from "@/lib/acceso";
 import { ROL_TEXTO } from "@/lib/types";
+import { AlertaGrave } from "./AlertaGrave";
 import { BotonPanico } from "./BotonPanico";
+import { Campana } from "./Notificaciones";
+import { AvisoTerminos } from "./Terminos";
 import { Logo } from "./Logo";
 import { Avatar } from "./ui";
 
@@ -82,6 +85,12 @@ const I = {
       <path d="M9 12h7M9 16h7M9 8h3" />
     </>
   ),
+  gastos: (
+    <>
+      <rect x="3" y="6" width="18" height="13" rx="2" />
+      <path d="M3 10h18M7 15h3" />
+    </>
+  ),
   voz: (
     <>
       <rect x="9" y="3" width="6" height="11" rx="3" />
@@ -121,6 +130,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const personal: Item[] = [
     { href: "/inicio", t: "Inicio", icon: I.inicio, badge: invitaciones.length + intercambiosPend },
     { href: "/perfil", t: "Mi perfil", icon: I.perfil },
+    { href: "/pasaporte", t: "Pasaporte de Cuidado", icon: I.capacitacion },
     { href: "/cv", t: "Mi CV de cuidado", icon: I.cv },
     { href: "/red", t: "Red de cuidado", icon: I.red, badge: solicitudesPend },
     { href: "/capacitacion", t: "Capacitación", icon: I.capacitacion },
@@ -137,8 +147,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
         { href: "/valoracion", t: "Valoración", icon: I.valoracion },
         { href: "/seguimiento", t: "Seguimiento y evidencia", icon: I.seguimiento, badge: porConfirmar },
         { href: "/relevos", t: "Relevos", icon: I.relevos },
-        { href: "/paciente", t: paciente?.nombre ?? "Persona cuidada", icon: I.paciente },
+        { href: "/paciente", t: paciente?.nombre ?? "Persona mayor", icon: I.paciente },
         { href: "/equipo", t: "Equipo médico", icon: I.equipo },
+        { href: "/gastos", t: "Gastos del cuidado", icon: I.gastos },
         { href: "/alertas", t: "Alertas y centros", icon: I.alertas, badge: alertasActivas },
       ]
     : [];
@@ -260,6 +271,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <button type="button" onClick={salir} className="text-muted hover:text-ink">Cerrar sesión</button>
         <span className="text-line">·</span>
         <Link href="/guion" className="text-muted hover:text-ink">Guion</Link>
+        <span className="text-line">·</span>
+        <Link href="/respaldo" className="text-muted hover:text-ink">Límites</Link>
       </div>
     </div>
   );
@@ -293,6 +306,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             )}
           </p>
           <div className="flex items-center gap-2">
+            <Campana />
             {familia && (
               <span className="hidden rounded-full border border-line bg-white px-3 py-1 text-xs font-medium sm:inline-flex">
                 {deTurno ? `De turno: ${deTurno}` : "Sin turno ahora"}
@@ -324,6 +338,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <div className="print:hidden">
         <BotonPanico />
       </div>
+      <AvisoTerminos />
+      <AlertaGrave />
 
       <nav aria-label="Navegación principal" className="glass print:hidden fixed inset-x-3 bottom-3 z-40 flex h-[64px] gap-0.5 rounded-3xl p-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.1)] md:hidden">
         {movil.filter(visible).map((it) => (

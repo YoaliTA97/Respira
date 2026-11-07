@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useData } from "@/lib/db";
-import { GUIAS_MEDICAS, TUTORIALES, type Tutorial } from "@/lib/catalogos";
+import { AVISOS, CERTIFICABLES, GUIAS_MEDICAS, TUTORIALES, type Tutorial } from "@/lib/catalogos";
 import { completados, estadoCertificaciones, horasCuidado, tutorialesRecomendados } from "@/lib/calculos";
 import { GuiaModal } from "@/components/GuiaVideo";
 import { TechTag } from "@/components/TechTag";
@@ -68,6 +68,9 @@ function Capacitacion() {
         <span className="text-xs text-muted">{t.duracionMin} min · {t.habilidad}</span>
         {hechos.has(t.id) ? <Pill tono="green">Completado</Pill> : <Pill tono="outline">Pendiente</Pill>}
       </span>
+      <span className="flex gap-1">
+        {t.soloFamiliar ? <Pill tono="amber">Ruta A · solo para tu familiar</Pill> : <Pill>Ruta A y B</Pill>}
+      </span>
       <span className="font-semibold">{t.titulo}</span>
       {hechos.has(t.id) && <span className="text-xs text-muted">{practicas(t.id)} prácticas registradas en reportes</span>}
     </button>
@@ -75,7 +78,7 @@ function Capacitacion() {
 
   return (
     <>
-      <Encabezado sub="Habilidades que vas sumando según lo que necesita la persona que cuidas" titulo="Capacitación y certificación" />
+      <Encabezado sub="Ruta A: cuidar a mi familiar · Ruta B: cuidar como oficio, con certificación oficial del CONOCER" titulo="Capacitación y certificación" />
 
       <TechTag k="tutoriales">
         <Tarjeta titulo={paciente ? `Recomendados para el cuidado de ${paciente.nombre}` : "Tutoriales recomendados"}>
@@ -115,6 +118,7 @@ function Capacitacion() {
       <TechTag k="certificaciones" className="mt-4">
         <Tarjeta titulo="Certificaciones">
           <p className="text-sm text-muted">Al acumular habilidades y horas se desbloquea la certificación. Se obtiene en una demostración presencial corta; no es un curso largo.</p>
+          <p className="rounded-xl bg-canvas p-3 text-xs text-muted">{AVISOS.noRemuneracion}</p>
           <div className="grid gap-3 lg:grid-cols-2">
             {certs.map((c) => (
               <div key={c.def.id} className={`flex flex-col gap-3 rounded-2xl border p-4 ${c.estado === "certificada" ? "border-primario" : "border-line"}`}>
@@ -140,8 +144,11 @@ function Capacitacion() {
                 </ul>
                 <p className="text-xs text-muted">{c.def.modalidad}</p>
                 {c.estado === "disponible" && (
+                  <p className="rounded-xl bg-green-bg p-3 text-sm font-semibold text-green-ink">Ya cubres lo que pide el {c.def.nombre.split(" · ")[0]}. ¿Quieres agendar tu evaluación?</p>
+                )}
+                {c.estado === "disponible" && (
                   <div className="flex flex-wrap gap-2">
-                    {["Sábado 10:00 a 12:00", "Domingo 10:00 a 12:00"].map((s) => (
+                    {["Sábado 10:00 a 12:00 (en domicilio)", "Domingo 10:00 a 12:00"].map((s) => (
                       <button key={s} type="button" className={btnSecondary} onClick={() => agendarCertificacion(c.def.id, s)}>Agendar {s}</button>
                     ))}
                   </div>
@@ -166,14 +173,55 @@ function Capacitacion() {
         </Tarjeta>
       </TechTag>
 
+      <TechTag k="certificaciones" className="mt-4">
+        <Tarjeta titulo="Qué se puede certificar para trabajar y qué es solo para cuidar en casa">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead>
+                <tr className="border-b border-line text-left text-xs text-muted">
+                  <th className="py-2 pr-3 font-medium">Habilidad</th>
+                  <th className="py-2 pr-3 font-medium">Cuidado en casa (Ruta A)</th>
+                  <th className="py-2 pr-3 font-medium">Certificable para trabajar (Ruta B)</th>
+                  <th className="py-2 pr-3 font-medium">Estándar o nota</th>
+                </tr>
+              </thead>
+              <tbody>
+                {CERTIFICABLES.map((c) => (
+                  <tr key={c.habilidad} className="border-b border-line-soft last:border-0">
+                    <td className="py-2 pr-3">{c.habilidad}</td>
+                    <td className="py-2 pr-3">{c.casa}</td>
+                    <td className={`py-2 pr-3 ${c.trabajo === "No" ? "text-red-ink" : ""}`}>{c.trabajo}</td>
+                    <td className="py-2 pr-3 text-muted">{c.nota}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-muted">Por validar con asesoría legal y médica (práctica de enfermería, NOM-019-SSA3-2013).</p>
+        </Tarjeta>
+      </TechTag>
+
       <TechTag k="trayectoria" className="mt-4">
-        <Tarjeta titulo="Tu trayectoria">
+        <Tarjeta titulo="Pasaporte de Cuidado" accion={<a href="/pasaporte" className="text-sm font-medium text-muted">Ver mi pasaporte</a>}>
           <div className="grid grid-cols-3 gap-3 text-center">
             <div className="rounded-xl bg-canvas p-3"><p className="text-2xl font-semibold">{horas}</p><p className="text-xs text-muted">horas de cuidado</p></div>
             <div className="rounded-xl bg-canvas p-3"><p className="text-2xl font-semibold">{hechos.size}</p><p className="text-xs text-muted">habilidades</p></div>
             <div className="rounded-xl bg-canvas p-3"><p className="text-2xl font-semibold">{certs.filter((c) => c.estado === "certificada").length}</p><p className="text-xs text-muted">certificaciones</p></div>
           </div>
-          <p className="text-sm text-muted">El trabajo de cuidado que registras se convierte en evidencia para certificarte y para el empleo formal, con seguro y pensión.</p>
+          <p className="text-sm text-muted">Tus horas y módulos se acumulan aquí y respaldan tu evaluación del CONOCER.</p>
+          <div className="grid gap-2 border-t border-line-soft pt-3 text-sm md:grid-cols-3">
+            {[
+              { r: "independiente", t: "A · Trabajadora independiente", d: "Incorporación voluntaria al IMSS; Respira separa de cada pago tu apartado para la cuota." },
+              { r: "cooperativa", t: "B · Cooperativa de cuidadoras", d: "Socias de una cooperativa en el régimen obligatorio; contratos con alcaldías y empresas." },
+              { r: "plataforma", t: "C · Plataformas digitales (a validar)", d: "Si aplica, Respira registra y paga la cuota patronal." },
+            ].map((x) => (
+              <div key={x.r} className={`rounded-xl border p-3 ${usuario.seguridadSocial?.ruta === x.r ? "border-primario bg-realce/50" : "border-line"}`}>
+                <p className="font-semibold">{x.t}</p>
+                <p className="text-xs text-muted">{x.d}</p>
+                {usuario.seguridadSocial?.ruta === x.r && <p className="mt-1 text-xs font-semibold text-primario">Tu ruta · apartado {usuario.seguridadSocial.apartadoPct}% de cada pago</p>}
+              </div>
+            ))}
+          </div>
         </Tarjeta>
       </TechTag>
 

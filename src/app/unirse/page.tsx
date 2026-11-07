@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useData } from "@/lib/db";
+import { CODIGO_DEMO, useData } from "@/lib/db";
+import { crearHash, problemaClave } from "@/lib/clave";
+import { CLAVE_DEMO } from "@/lib/seed";
 import { PARENTESCOS, telefonoLimpio } from "@/lib/catalogos";
 import { ROL_TEXTO, type Usuario } from "@/lib/types";
 import { Logo } from "@/components/Logo";
@@ -13,7 +15,11 @@ import { Avatar, Pill, Segmentado, btnPrimary, btnSecondary, input, label } from
 // Entrada por QR o por el enlace de la invitación. En la demo se elige el perfil; con backend,
 // la persona confirma con un código que le llega por WhatsApp a su teléfono.
 function Unirse() {
-  const { db, usuario, unirseConCodigo } = useData();
+  const { db, usuario, unirseConCodigo, iniciarSesion, crearClave } = useData();
+  const [elegido, setElegido] = useState<Usuario | null>(null);
+  const [clave, setClave] = useState("");
+  const [codigoVerif, setCodigoVerif] = useState("");
+  const [error, setError] = useState("");
   const router = useRouter();
   const q = useSearchParams();
   const [codigo, setCodigo] = useState((q.get("c") ?? "").toUpperCase());
@@ -33,6 +39,29 @@ function Unirse() {
     : [];
   const entrar = (como: Parameters<typeof unirseConCodigo>[1]) => {
     if (unirseConCodigo(codigo, como)) router.push("/familia");
+  };
+  // Perfil existente: se confirma con su contraseña, o se crea con el código de verificación.
+  const confirmar = async () => {
+    if (!elegido) return;
+    setError("");
+    if (elegido.clave) {
+      const r = await iniciarSesion(elegido.telefono, clave, true);
+      if (r !== "ok") return setError(r === "bloqueada" ? "Demasiados intentos; espera unos minutos." : "La contraseña no es correcta.");
+      entrar({ usuarioId: elegido.id });
+      return;
+    }
+    const p = problemaClave(clave);
+    if (p) return setError(p);
+    if (codigoVerif.trim() !== CODIGO_DEMO) return setError("El código no es correcto.");
+    if (!unirseConCodigo(codigo, { usuarioId: elegido.id })) return;
+    await crearClave(elegido.telefono, codigoVerif, clave, true);
+    router.push("/familia");
+  };
+  const unirmeNuevo = async () => {
+    const p = problemaClave(clave);
+    if (p) return setError(p);
+    if (codigoVerif.trim() !== CODIGO_DEMO) return setError("El código no es correcto.");
+    entrar({ nuevo: { ...nuevo, nombre: nuevo.nombre.trim(), clave: await crearHash(clave) } });
   };
   const telNuevo = nuevo.telefono.replace(/\D/g, "");
   const yaExiste = telNuevo.length === 10 && db.usuarios.find((u) => u.telefono === telNuevo);
@@ -54,7 +83,7 @@ function Unirse() {
               </div>
               {codigo && <p role="alert" className="rounded-xl bg-amber-bg p-3 text-sm text-amber-ink">No encontramos el código {codigo} en este dispositivo. En la demo los datos viven en cada navegador: el QR funciona con la familia de ejemplo o en el mismo equipo donde se creó el espacio.</p>}
               <div className="flex gap-2">
-                <input aria-label="Código de la familia" className={`${input} uppercase`} placeholder="Ej. HRN482" value={escrito} onChange={(e) => setEscrito(e.target.value.toUpperCase())} />
+                <input aria-label="Código de la familia" className={`${input} uppercase`} placeholder="Ej. NEW482" value={escrito} onChange={(e) => setEscrito(e.target.value.toUpperCase())} />
                 <button type="button" className={btnPrimary} disabled={escrito.trim().length < 4} onClick={() => setCodigo(escrito.trim())}>Buscar</button>
               </div>
             </>
@@ -77,7 +106,7 @@ function Unirse() {
                     <li key={m.id}>
                       <button
                         type="button"
-                        onClick={() => entrar({ usuarioId: u.id })}
+                        onClick={() => { setElegido(u); setClave(""); setCodigoVerif(""); setError(""); }}
                         className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-2.5 text-left hover:border-primario ${u.id === sugerido ? "border-primario bg-realce/50" : "border-line"}`}
                       >
                         <Avatar nombre={u.nombre} tono={u.tono} size={38} />
@@ -90,8 +119,29 @@ function Unirse() {
                     </li>
                   ))}
                 </ul>
-                <p className="text-xs text-muted">Versión de prueba: eliges tu perfil. Con backend, confirmas con un código que llega por WhatsApp a tu teléfono.</p>
               </div>
+
+              {elegido && (
+                <form className="flex flex-col gap-3 rounded-2xl border border-primario/30 bg-realce/40 p-4" onSubmit={(e) => { e.preventDefault(); void confirmar(); }}>
+                  <span className="text-sm font-semibold">{elegido.clave ? `Confirma que eres ${elegido.nombre.split(" ")[0]}` : `Crea la contraseña de ${elegido.nombre.split(" ")[0]}`}</span>
+                  {!elegido.clave && (
+                    <div className="flex flex-col gap-1.5">
+                      <label htmlFor="un-cod" className={label}>Código que llegó por WhatsApp</label>
+                      <input id="un-cod" inputMode="numeric" autoComplete="one-time-code" className={input} value={codigoVerif} onChange={(e) => setCodigoVerif(e.target.value)} />
+                      <span className="text-xs text-muted">Versión de prueba: {CODIGO_DEMO}</span>
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="un-clave" className={label}>{elegido.clave ? "Contraseña" : "Nueva contraseña (8+ caracteres, letras y números)"}</label>
+                    <input id="un-clave" type="password" autoComplete={elegido.clave ? "current-password" : "new-password"} className={input} value={clave} onChange={(e) => setClave(e.target.value)} autoFocus />
+                    {elegido.clave && elegido.telefono.startsWith("551000000") && (
+                      <button type="button" className="self-start text-xs font-semibold text-primario underline" onClick={() => setClave(CLAVE_DEMO)}>Usar la contraseña de ejemplo</button>
+                    )}
+                  </div>
+                  {error && <p role="alert" className="text-sm text-red-ink">{error}</p>}
+                  <button type="submit" className={btnPrimary} disabled={!clave || (!elegido.clave && !codigoVerif)}>Entrar a {fam.nombre}</button>
+                </form>
+              )}
 
               {!otro ? (
                 <button type="button" className={btnSecondary} onClick={() => setOtro(true)}>Soy alguien más de la familia</button>
@@ -104,12 +154,24 @@ function Unirse() {
                     {yaExiste && <span className="text-xs text-muted">Ya tienes perfil ({yaExiste.nombre}): entrarás con él.</span>}
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label htmlFor="un-par" className={label}>¿Qué eres de {pac?.nombre ?? "la persona cuidada"}?</label>
+                    <label htmlFor="un-par" className={label}>¿Qué eres de {pac?.nombre ?? "la persona mayor"}?</label>
                     <input id="un-par" list="un-parentescos" className={input} value={nuevo.parentesco} onChange={(e) => setNuevo({ ...nuevo, parentesco: e.target.value })} />
                     <datalist id="un-parentescos">{PARENTESCOS.map((p) => <option key={p} value={p} />)}</datalist>
                   </div>
                   <Segmentado etiqueta="Género" valor={nuevo.genero} onChange={(v) => setNuevo({ ...nuevo, genero: v })} opciones={[{ v: "mujer", t: "Mujer" }, { v: "hombre", t: "Hombre" }, { v: "otro", t: "Otro" }]} />
-                  <button type="button" className={btnPrimary} disabled={nuevo.nombre.trim().length < 2 || telNuevo.length !== 10} onClick={() => entrar({ nuevo: { ...nuevo, nombre: nuevo.nombre.trim() } })}>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="flex flex-col gap-1.5">
+                      <label htmlFor="un-cod2" className={label}>Código por WhatsApp</label>
+                      <input id="un-cod2" inputMode="numeric" className={input} value={codigoVerif} onChange={(e) => setCodigoVerif(e.target.value)} />
+                      <span className="text-xs text-muted">Versión de prueba: {CODIGO_DEMO}</span>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label htmlFor="un-clave2" className={label}>Crea tu contraseña</label>
+                      <input id="un-clave2" type="password" autoComplete="new-password" className={input} value={clave} onChange={(e) => setClave(e.target.value)} />
+                    </div>
+                  </div>
+                  {error && !elegido && <p role="alert" className="text-sm text-red-ink">{error}</p>}
+                  <button type="button" className={btnPrimary} disabled={nuevo.nombre.trim().length < 2 || telNuevo.length !== 10 || !clave || !codigoVerif} onClick={() => void unirmeNuevo()}>
                     Unirme a {fam.nombre}
                   </button>
                 </div>

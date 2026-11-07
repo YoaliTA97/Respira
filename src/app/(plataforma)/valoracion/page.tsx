@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useData } from "@/lib/db";
-import { AFILIACIONES, ANTECEDENTES, DISPOSITIVOS, EQUIPOS, GUIAS_MEDICAS, MEDICAMENTOS_DE, SIGNOS, SINTOMAS, ULTIMA_CONSULTA, condicionCatalogo } from "@/lib/catalogos";
+import { AVISOS, AFILIACIONES, ANTECEDENTES, DISPOSITIVOS, EQUIPOS, GUIAS_MEDICAS, MEDICAMENTOS_DE, SIGNOS, SINTOMAS, ULTIMA_CONSULTA, condicionCatalogo } from "@/lib/catalogos";
 import { reducirImagen } from "@/lib/imagen";
 import { imagenEjemplo } from "@/lib/seed";
 import { evaluar, type Medicion, type Senal } from "@/lib/reglas";
@@ -364,6 +364,8 @@ function Valoracion() {
                 <label htmlFor="v-nota" className={label}>Nota para la familia (opcional)</label>
                 <textarea id="v-nota" rows={2} className="resize-none rounded-xl border border-line p-3 text-[15px] outline-none focus:border-primario" value={nota} onChange={(e) => setNota(e.target.value)} />
               </div>
+              {!paciente.umbralesDelMedico && <p className="rounded-xl bg-amber-bg p-3 text-sm text-amber-ink">Sin los umbrales de su médico, las alertas son menos precisas: solo aplican las banderas rojas generales.</p>}
+              <p className="text-xs text-muted">{AVISOS.noReemplaza}</p>
               <p className="text-xs text-muted">
                 {fotos.length} foto(s) de evidencia · {tocoHistoria ? "historia clínica actualizada" : "historia sin cambios"} · {tocoServicios ? "servicios de salud actualizados" : "servicios sin cambios"}
               </p>

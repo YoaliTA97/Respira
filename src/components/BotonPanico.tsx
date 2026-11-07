@@ -29,6 +29,16 @@ export function BotonPanico() {
 
   return (
     <>
+      <Link
+        href="/chat"
+        aria-label="Abrir el chat de seguimiento"
+        className="fixed bottom-[160px] right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primario text-white shadow-[0_8px_24px_rgba(46,63,143,0.35)] transition hover:bg-primario-oscuro md:bottom-24 md:right-6"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M4 5h16v11H8l-4 4z" />
+          <path d="M8 10h8M8 13h5" />
+        </svg>
+      </Link>
       <button
         type="button"
         onClick={() => setAbierto(true)}

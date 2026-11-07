@@ -8,6 +8,8 @@ import { semana } from "@/lib/seed";
 import { ALCALDIAS, ROLES_INTERES, SUGERENCIAS_EXPERIENCIA, SUGERENCIAS_ROL, telefonoLimpio } from "@/lib/catalogos";
 import type { Usuario } from "@/lib/types";
 import { DisponibilidadEditor } from "@/components/Disponibilidad";
+import { CasillasTerminos, PUNTOS_TERMINOS } from "@/components/Terminos";
+import { crearHash, problemaClave } from "@/lib/clave";
 import { Logo } from "@/components/Logo";
 import { TechTag } from "@/components/TechTag";
 import { Etiquetas, Segmentado, btnPrimary, btnSecondary, input, label } from "@/components/ui";
@@ -19,19 +21,24 @@ export default function Registro() {
   const router = useRouter();
   const [paso, setPaso] = useState(0);
   const [p, setP] = useState<PerfilNuevo>({
-    nombre: "", telefono: "", genero: "mujer", alcaldia: "Coyoacán", roles: ["Cuidar a mi familiar"], experiencia: [], disponibilidad: semana(8, 20), bio: "",
+    nombre: "", telefono: "", genero: "mujer", alcaldia: "Iztapalapa", roles: ["Cuidar a mi familiar"], experiencia: [], disponibilidad: semana(8, 20), bio: "",
     ofreceAyuda: { activo: false, radioKm: 3, modalidades: ["intercambio de horas"], tarifaHora: 100 },
   });
   const tel = p.telefono.replace(/\D/g, "");
   const existente = db.usuarios.find((u) => u.telefono === tel);
   const yaTieneCuenta = !!existente && existente.alcaldia !== "";
   const invitado = !!existente && !yaTieneCuenta;
-  const valido = paso === 0 ? p.nombre.trim().length > 1 && tel.length === 10 && !yaTieneCuenta : true;
+  const [terminos, setTerminos] = useState<Record<string, boolean>>({});
+  const aceptados = PUNTOS_TERMINOS.every((x) => terminos[x.k]);
+  const [clave, setClave] = useState({ a: "", b: "" });
+  const errorClave = clave.a ? problemaClave(clave.a) || (clave.b && clave.a !== clave.b ? "Las contraseñas no coinciden." : "") : "";
+  const claveOk = !!clave.a && !problemaClave(clave.a) && clave.a === clave.b;
+  const valido = paso === 0 ? p.nombre.trim().length > 1 && tel.length === 10 && !yaTieneCuenta && aceptados && claveOk : true;
   const toggleMod = (m: Usuario["ofreceAyuda"]["modalidades"][number]) =>
     setP({ ...p, ofreceAyuda: { ...p.ofreceAyuda, modalidades: p.ofreceAyuda.modalidades.includes(m) ? p.ofreceAyuda.modalidades.filter((x) => x !== m) : [...p.ofreceAyuda.modalidades, m] } });
 
-  const terminar = (destino: string) => {
-    crearCuenta({ ...p, nombre: p.nombre.trim() });
+  const terminar = async (destino: string) => {
+    crearCuenta({ ...p, nombre: p.nombre.trim(), aceptoTerminos: new Date().toISOString().slice(0, 19), clave: await crearHash(clave.a) });
     router.push(destino);
   };
 
@@ -80,6 +87,19 @@ export default function Registro() {
                     </select>
                   </div>
                 </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="r-c1" className={label}>Crea tu contraseña</label>
+                    <input id="r-c1" type="password" autoComplete="new-password" className={input} value={clave.a} onChange={(e) => setClave({ ...clave, a: e.target.value })} />
+                    <span className="text-xs text-muted">Al menos 8 caracteres, con letras y números.</span>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="r-c2" className={label}>Repítela</label>
+                    <input id="r-c2" type="password" autoComplete="new-password" className={input} value={clave.b} onChange={(e) => setClave({ ...clave, b: e.target.value })} />
+                    {errorClave && <span className="text-xs text-red-ink">{errorClave}</span>}
+                  </div>
+                </div>
+                <CasillasTerminos valor={terminos} onChange={setTerminos} />
               </>
             )}
             {paso === 1 && (

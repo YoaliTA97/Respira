@@ -2,17 +2,17 @@ import { ROL_TEXTO, type Membresia, type RolFamilia, type Usuario } from "./type
 
 // Qué secciones ve cada persona. Depende de dos cosas:
 // 1) los roles que eligió en su perfil ("Roles que puedes desempeñar");
-// 2) su rol en el espacio familiar activo (coordinación, cuidado, apoyo, avisos o persona cuidada).
+// 2) su rol en el espacio familiar activo (coordinación, cuidado, apoyo, avisos o persona mayor).
 // En el MVP las mismas reglas viven en las políticas por membresía de Supabase.
 
 export type Seccion =
   | "inicio" | "perfil" | "cv" | "red" | "capacitacion"
-  | "familia" | "integrantes" | "chat" | "valoracion" | "seguimiento" | "relevos" | "paciente" | "equipo" | "alertas" | "voz";
+  | "familia" | "integrantes" | "chat" | "valoracion" | "seguimiento" | "relevos" | "paciente" | "equipo" | "alertas" | "voz" | "gastos";
 
 export const SECCION_DE_RUTA: Record<string, Seccion> = {
-  "/inicio": "inicio", "/perfil": "perfil", "/cv": "cv", "/red": "red", "/capacitacion": "capacitacion",
+  "/inicio": "inicio", "/perfil": "perfil", "/cv": "cv", "/pasaporte": "cv", "/red": "red", "/capacitacion": "capacitacion",
   "/familia": "familia", "/integrantes": "integrantes", "/chat": "chat", "/valoracion": "valoracion", "/seguimiento": "seguimiento",
-  "/relevos": "relevos", "/paciente": "paciente", "/equipo": "equipo", "/alertas": "alertas", "/mi-voz": "voz",
+  "/relevos": "relevos", "/paciente": "paciente", "/equipo": "equipo", "/alertas": "alertas", "/mi-voz": "voz", "/gastos": "gastos",
 };
 
 const TODOS: RolFamilia[] = ["coordinacion", "cuidado", "apoyo", "avisos", "persona"];
@@ -28,6 +28,7 @@ export const ROLES_DEL_ESPACIO: Record<Exclude<Seccion, "inicio" | "perfil" | "c
   equipo: QUIENES_CUIDAN,
   seguimiento: [...QUIENES_CUIDAN, "avisos"],
   paciente: [...QUIENES_CUIDAN, "avisos"],
+  gastos: [...QUIENES_CUIDAN, "avisos"],
 };
 
 const ROLES_DE_CUIDADO = ["Cuidar a mi familiar", "Coordinar a la familia", "Hacer relevos en la red", "Acompañamiento"];

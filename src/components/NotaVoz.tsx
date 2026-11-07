@@ -18,7 +18,8 @@ type Reconocimiento = {
 
 const MAX_SEG = 90;
 
-export function NotaVoz({ onListo, onCancelar }: { onListo: (texto: string, audioUrl?: string) => void; onCancelar: () => void }) {
+// "ejemplo": transcripción de respaldo para la presentación, por si el dictado del navegador no está disponible o no entiende.
+export function NotaVoz({ onListo, onCancelar, ejemplo }: { onListo: (texto: string, audioUrl?: string) => void; onCancelar: () => void; ejemplo?: string }) {
   const [estado, setEstado] = useState<"listo" | "grabando" | "revisar" | "error">("listo");
   const [texto, setTexto] = useState("");
   const [parcial, setParcial] = useState("");
@@ -121,6 +122,11 @@ export function NotaVoz({ onListo, onCancelar }: { onListo: (texto: string, audi
         <>
           {audioUrl && <audio controls src={audioUrl} className="w-full" />}
           <label htmlFor="transcripcion" className="text-xs font-medium text-muted">Revisa lo que se entendió (puedes corregirlo)</label>
+          {ejemplo && texto.trim() !== ejemplo && (
+            <button type="button" className="self-start text-xs font-semibold text-primario underline" onClick={() => setTexto(ejemplo)}>
+              {texto.trim() ? "Reemplazar con la nota de ejemplo" : "No se entendió: usar la nota de ejemplo"}
+            </button>
+          )}
           <textarea id="transcripcion" rows={3} value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Ej. Recibo a mi mamá, pulso 80, respira 18, presión 130 sobre 80…" className="resize-none rounded-xl border border-line p-3 text-[15px] outline-none focus:border-primario" />
           <div className="flex gap-2">
             <button type="button" className={btnPrimary} disabled={!texto.trim()} onClick={() => onListo(texto.trim(), audioUrl)}>Enviar al asistente</button>
@@ -131,7 +137,10 @@ export function NotaVoz({ onListo, onCancelar }: { onListo: (texto: string, audi
       {estado === "error" && (
         <>
           <p className="text-sm text-red-ink">No se pudo usar el micrófono. Revisa el permiso del navegador o escribe el reporte.</p>
-          <button type="button" className={`${btnSecondary} self-start`} onClick={onCancelar}>Cerrar</button>
+          <div className="flex flex-wrap gap-2">
+            {ejemplo && <button type="button" className={btnPrimary} onClick={() => { setTexto(ejemplo); setEstado("revisar"); }}>Usar la nota de ejemplo</button>}
+            <button type="button" className={btnSecondary} onClick={onCancelar}>Cerrar</button>
+          </div>
         </>
       )}
     </div>

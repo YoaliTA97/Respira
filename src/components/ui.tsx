@@ -36,9 +36,9 @@ export function Avatar({ nombre, tono = "t1", size = 32 }: { nombre: string; ton
 }
 
 const NIVEL: Record<Nivel, { t: string; cls: string }> = {
-  verde: { t: "Estable", cls: "bg-green-bg text-green-ink" },
-  amarillo: { t: "Vigilar", cls: "bg-amber-bg text-amber-ink" },
-  rojo: { t: "Alerta", cls: "bg-red-bg text-red-ink" },
+  verde: { t: "Todo en orden", cls: "bg-green-bg text-green-ink" },
+  amarillo: { t: "Vuelve a revisar", cls: "bg-amber-bg text-amber-ink" },
+  rojo: { t: "Alerta grave", cls: "bg-red-bg text-red-ink" },
 };
 
 export function NivelPill({ nivel, texto }: { nivel: Nivel; texto?: string }) {

@@ -10,9 +10,9 @@ import { btnDanger, btnPrimary } from "@/components/ui";
 // Página pública que abre el enlace del WhatsApp de alerta: no requiere sesión.
 function Contenido() {
   const q = useSearchParams();
-  const lat = Number(q.get("lat")) || 19.3135;
-  const lng = Number(q.get("lng")) || -99.146;
-  const persona = q.get("p") ?? "la persona cuidada";
+  const lat = Number(q.get("lat")) || 19.3567;
+  const lng = Number(q.get("lng")) || -99.0599;
+  const persona = q.get("p") ?? "la persona mayor";
   return (
     <div className="mx-auto flex max-w-[1100px] flex-col gap-5 px-4 py-6">
       <div className="flex items-center gap-2">

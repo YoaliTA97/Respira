@@ -26,45 +26,48 @@ Con Node 20.9 o más reciente. Las variables de entorno son opcionales. Sin ella
 
 ## Recorrido
 
-Abre **`/guion`**: son 8 pasos para unos 3 minutos. Cada botón entra con la persona indicada y abre la pantalla, con datos de ejemplo ya cargados. Los formularios tienen botones de **Llenar con ejemplo** para no capturar en vivo.
+**Caso de ejemplo:** doña Doreen Newman, 82 años, en Iztapalapa.
+- **Familia:** Sara (hija, cuidadora principal), Karla (sobrina), Mariana y Diego (nietos).
+- **Red cercana:** Lupe (vecina de enfrente), Ofelia (cuidadora certificada a 10 minutos) y don Luis (vecino de al lado, banco de tiempo).
+- **Contraseña** de las cuentas de ejemplo: `respira2026`.
+
+Abre **`/guion`**: sigue los bloques 3 a 6 del speech, y cada botón entra con la persona indicada. Los formularios tienen **Llenar con ejemplo**. **Seis meses después** lleva la demo al cierre del pitch: Sara certificada y con IMSS, y la red de Doreen de 3 a 14 personas. **Reiniciar** la deja como al inicio.
 
 Qué incluye la app:
 
-- **Resumen de la familia.** Indicadores de 30 días:
-  - horas de relevo al mes;
-  - sobrecarga con la escala de Zarit abreviada;
-  - alertas atendidas a tiempo, contadas por la primera respuesta;
-  - cuidadoras certificadas con ingreso.
-- **Integrantes.**
-  - Mapa de nodos.
-  - Alta por teléfono: si la persona ya tiene perfil, se vincula.
-  - QR para unirse al espacio, con código de familia.
-  - En la simulación, las invitaciones se aceptan solas.
-- **Valoración en checklist:**
-  - biométricos con foto de evidencia;
-  - síntomas;
-  - estado de conciencia guiado;
-  - historia clínica;
-  - uso de servicios de salud;
-  - resultado con las reglas de alarma.
-- **Voz de la persona cuidada (Mi voz).**
-  - Su perfil en sus palabras, por nota de voz.
-  - Cómo se siente hoy.
-  - Decisiones de salud y voluntad anticipada.
-  - Quién ve su historial.
-  - Metas de autonomía.
-  - Sus horas en el banco de tiempo.
-- **Alertas.**
-  - Trifecta y botón de pánico.
-  - WhatsApp con el enlace a SIDECU.
-  - Ficha de emergencia.
-  - Mensajes dentro de la alerta y reenvío por WhatsApp desde el teléfono (wa.me).
-- **Red por radio.** Une la red de Respira con la base de SIDECU (personas y centros).
-- **Equipo médico.** Préstamo entre perfiles y renta con aliados.
-- **Seguimiento y evidencia.** Bitácora, fotos y confirmación por otro integrante.
-- **Capacitación.** Tutoriales, guías del médico en video (el enlace se carga cuando lo entregue el médico aliado) y certificaciones.
-- **CV de cuidado.** Habilidades, evidencia, certificaciones e ingreso; se descarga en PDF.
-- **Accesos según el rol.** El menú solo muestra lo que corresponde a los roles del perfil y del espacio.
+- **Acceso.**
+  - Contraseña cifrada (PBKDF2) y bloqueo tras 5 intentos.
+  - "Recordarme" por 12 horas y entrada por QR con código de familia.
+  - Avisos y consentimiento de datos.
+  - Accesos según el rol.
+- **Resumen** con gráficas:
+  - indicadores del piloto: horas de relevo para la cuidadora principal, Zarit, alertas graves atendidas en menos de 15 minutos, Mi voz, cuidadoras certificadas con ingreso, signos y medicación;
+  - transición de roles (antes y ahora).
+- **Nota de voz** con transcripción que una persona confirma.
+  - "Vuelve a revisar" en 15 minutos.
+  - Si se repite o empeora, alerta grave a pantalla completa (911, WhatsApp a toda la familia, ficha para paramédicos y quién puede llegar).
+  - Botón de pánico.
+  - Notificaciones que piden acción.
+- **Mi voz** de la persona mayor:
+  - su perfil en sus palabras;
+  - cómo se siente;
+  - decisiones de salud;
+  - permisos y borrar su historial;
+  - metas;
+  - lo que aporta.
+- **Red y relevos.**
+  - Mapa de nodos que crece por etapas.
+  - Apoyo por radio con calificaciones.
+  - Mapa esquemático que funciona sin internet.
+  - SIDECU.
+  - Banco de tiempo.
+  - Préstamo de equipo.
+- **Valoración en checklist**, seguimiento y evidencia, gastos del cuidado (tope mensual y aportación voluntaria).
+- **Capacitación.**
+  - Ruta A y Ruta B (CONOCER EC0669 y EC1209.01).
+  - Pasaporte de Cuidado con su sello.
+  - CV de cuidado con apartado IMSS.
+- **Pantallas del pitch:** `/impacto` (quién paga y el impacto) y `/respaldo` (límites y alcances: respuestas a las preguntas del jurado).
 
 Activa **Capa técnica** en la barra lateral para ver qué respalda cada elemento. `/tecnico` muestra el mapa completo.
 

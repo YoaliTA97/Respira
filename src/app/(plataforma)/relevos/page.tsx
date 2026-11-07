@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useData } from "@/lib/db";
 import { DIAS_LARGOS, DURACIONES_RELEVO } from "@/lib/catalogos";
-import { candidatosFamilia, certificadas, cubre, estadoRelevo, fechaDe, horaTexto, perfilesRed, rangoRelevo } from "@/lib/calculos";
+import { calificacion, candidatosFamilia, certificadas, cubre, estadoRelevo, fechaDe, horaTexto, perfilesRed, rangoRelevo } from "@/lib/calculos";
+import { Estrellas } from "@/components/Graficas";
 import { diaSemana, fechaISO } from "@/lib/seed";
 import type { Relevo, SolicitudRed } from "@/lib/types";
 import { RequiereFamilia } from "@/components/RequiereFamilia";
@@ -178,7 +179,8 @@ function Relevos() {
                           <div key={u.id} className="flex items-center gap-2.5 rounded-xl border border-line p-2.5">
                             <Avatar nombre={u.nombre} tono={u.tono} size={32} />
                             <span className="flex flex-1 flex-col text-sm">
-                              <span className="font-semibold">{u.nombre} <span className="font-normal text-muted">· {distancia.toFixed(1)} km{u.fuente === "sidecu" ? " · vía SIDECU" : ""}</span></span>
+                              <span className="font-semibold">{u.nombre} <span className="font-normal text-muted">· {distancia.toFixed(1)} km (~{Math.max(2, Math.round(distancia * 5.5))} min){u.fuente === "sidecu" ? " · vía SIDECU" : ""}</span></span>
+                              {calificacion(db, u.id).n > 0 && <Estrellas valor={calificacion(db, u.id).promedio} n={calificacion(db, u.id).n} />}
                               <span className="text-xs text-muted">
                                 {certificadas(db, u.id).map((c) => c.nombre).join(", ") || "Práctica en la red"} · {u.ofreceAyuda.modalidades.includes("pago") ? `$${u.ofreceAyuda.tarifaHora}/h` : u.ofreceAyuda.modalidades[0]}
                               </span>

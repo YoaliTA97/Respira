@@ -84,7 +84,7 @@ export async function POST(req: Request) {
       const client = new Anthropic();
       const conProtocolo = condiciones.filter((c) => condicionCatalogo(c)).map(nombreCondicion);
       const sinProtocolo = condiciones.filter((c) => !condicionCatalogo(c));
-      const perfil = `Persona cuidada: ${p.nombre}, ${p.edad} años. Condiciones con protocolo: ${conProtocolo.join(", ") || "ninguna"}.${
+      const perfil = `Persona mayor: ${p.nombre}, ${p.edad} años. Condiciones con protocolo: ${conProtocolo.join(", ") || "ninguna"}.${
         sinProtocolo.length ? ` Otras condiciones que registró la familia (sin reglas automáticas): ${sinProtocolo.join(", ")}.` : ""
       }${alergias.length ? ` Alergias: ${alergias.join(", ")}.` : ""}${
         p.evento ? ` Evento reciente: caída el ${p.evento.fecha} (${p.evento.descripcion} ${p.evento.lesion}).` : ""

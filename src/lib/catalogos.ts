@@ -135,12 +135,32 @@ export type Tutorial = {
   institucion: string;
   pasos: string[];
   quiz: { pregunta: string; opciones: string[]; correcta: number }[];
+  // Ruta A (cuidar a mi familiar) siempre; si soloFamiliar, no es certificable para trabajar como cuidadora
+  soloFamiliar?: boolean;
 };
 
 const ALIADA = "Institución aliada (Cruz Roja, UNAM o UAM; convenio por confirmar)";
 
 // Contenido de ejemplo para la demo. Cada tutorial debe producirlo y validarlo la institución aliada.
 export const TUTORIALES: Tutorial[] = [
+  {
+    id: "autocuidado",
+    titulo: "Cuidarte para poder cuidar",
+    habilidad: "Autocuidado de la persona cuidadora",
+    duracionMin: 8,
+    institucion: ALIADA,
+    pasos: [
+      "Reconoce las señales de agotamiento: irritabilidad, cansancio que no se quita, aislarte.",
+      "Responde la escala de sobrecarga cada mes y comparte el resultado con tu familia.",
+      "Pide relevos con anticipación: usa el banco de tiempo y la red cercana.",
+      "Agenda al menos un espacio propio a la semana, aunque sea corto.",
+      "Busca apoyo: grupos de cuidadoras, tu centro de salud o la línea de tu alcaldía.",
+    ],
+    quiz: [
+      { pregunta: "Tu escala de sobrecarga salió alta. ¿Qué haces?", opciones: ["Aguanto, ya pasará", "Pido relevos a mi familia o a la red y lo platico", "Dejo de registrar"], correcta: 1 },
+      { pregunta: "¿Para qué sirve pedir relevos con anticipación?", opciones: ["Para que la familia pueda organizarse y no cuides sola", "No sirve"], correcta: 0 },
+    ],
+  },
   {
     id: "autonomia",
     titulo: "Acompañar sin hacer por ella",
@@ -195,6 +215,7 @@ export const TUTORIALES: Tutorial[] = [
   },
   {
     id: "insulina",
+    soloFamiliar: true,
     titulo: "Aplicar insulina (inyección subcutánea)",
     habilidad: "Inyección subcutánea",
     duracionMin: 10,
@@ -206,12 +227,13 @@ export const TUTORIALES: Tutorial[] = [
       "Cambia de sitio en cada aplicación y anota la hora.",
     ],
     quiz: [
-      { pregunta: "¿Quién decide la dosis de insulina?", opciones: ["La cuidadora", "Su médico", "La persona cuidada"], correcta: 1 },
+      { pregunta: "¿Quién decide la dosis de insulina?", opciones: ["La cuidadora", "Su médico", "La persona mayor"], correcta: 1 },
       { pregunta: "¿Por qué se cambia el sitio de inyección?", opciones: ["Para evitar lesiones en la piel", "Por costumbre", "No se cambia"], correcta: 0 },
     ],
   },
   {
     id: "heridas",
+    soloFamiliar: true,
     titulo: "Limpiar y cubrir una herida",
     habilidad: "Curación de heridas",
     duracionMin: 9,
@@ -263,6 +285,7 @@ export const TUTORIALES: Tutorial[] = [
   },
   {
     id: "pies",
+    soloFamiliar: true,
     titulo: "Revisar los pies en diabetes",
     habilidad: "Cuidado del pie",
     duracionMin: 5,
@@ -290,25 +313,41 @@ export type CertificacionDef = {
   beneficios: string[];
 };
 
+// Ruta B · Cuidar como oficio: estándares del CONOCER. La evaluación es presencial y corta con una
+// entidad acreditada; el EC0669 contempla evaluarse en un domicilio.
 export const CERTIFICACIONES: CertificacionDef[] = [
   {
-    id: "cuidados-basicos-1",
-    nombre: "Cuidados Básicos 1",
-    institucion: "Cruz Roja (institución aliada propuesta; convenio por confirmar)",
-    requiere: ["signos-vitales", "insulina", "heridas", "movilizacion"],
+    id: "ec0669",
+    nombre: "EC0669 · Cuidado básico de la persona adulta mayor en domicilio",
+    institucion: "CONOCER · entidad de certificación acreditada (por confirmar)",
+    requiere: ["signos-vitales", "movilizacion", "prevencion-caidas", "autonomia"],
     horasMinimas: 40,
-    modalidad: "Demostración presencial de 2 horas, en fin de semana",
-    beneficios: ["Empleo formal con seguro social", "Cobrar y emitir facturas", "Autoempleo como cuidadora", "Cotizar para pensión y Afore"],
+    modalidad: "Evaluación presencial corta, puede ser en un domicilio. No es un curso largo.",
+    beneficios: ["Perfil verificado para que te contraten familias en Respira", "Afiliación al IMSS como trabajadora independiente, con apartado automático de cada pago", "Constancias de ingreso para darte de alta en el SAT y facturar"],
   },
   {
-    id: "cuidado-diabetes",
-    nombre: "Cuidado de la persona con diabetes",
-    institucion: "Facultad de Enfermería, UNAM (institución aliada propuesta)",
-    requiere: ["glucosa", "insulina", "pies"],
+    id: "ec1209",
+    nombre: "EC1209.01 · Orientación para el autocuidado de la persona cuidadora",
+    institucion: "CONOCER · entidad de certificación acreditada (por confirmar)",
+    requiere: ["autocuidado"],
     horasMinimas: 20,
-    modalidad: "Demostración presencial de 1 hora",
-    beneficios: ["Ofrecer relevos pagados especializados", "Respaldo para empleo en residencias y hospitales"],
+    modalidad: "Evaluación presencial corta.",
+    beneficios: ["Orientar a otras cuidadoras de la red", "Complementa el EC0669 en tu perfil verificado"],
   },
+];
+
+// Qué se puede certificar para trabajar (Ruta B) y qué es solo para cuidar en casa (Ruta A).
+// Por validar con asesoría legal y médica.
+export const CERTIFICABLES: { habilidad: string; casa: string; trabajo: string; nota: string }[] = [
+  { habilidad: "Planear la rutina diaria de asistencia y cuidado", casa: "Sí", trabajo: "Sí", nota: "EC0669" },
+  { habilidad: "Higiene, baño, vestido y arreglo personal", casa: "Sí", trabajo: "Sí", nota: "EC0669" },
+  { habilidad: "Alimentación e hidratación según la dieta indicada", casa: "Sí", trabajo: "Sí", nota: "EC0669" },
+  { habilidad: "Movilización, traslados y prevención de caídas", casa: "Sí", trabajo: "Sí", nota: "EC0669" },
+  { habilidad: "Dar medicamentos orales ya prescritos; tomar y registrar signos", casa: "Sí", trabajo: "Sí, sin interpretar ni ajustar tratamiento", nota: "EC0669: registra y avisa, no decide" },
+  { habilidad: "Reconocer signos de alarma y primeros auxilios", casa: "Sí", trabajo: "Sí", nota: "Curso con constancia como complemento" },
+  { habilidad: "Autocuidado y orientación a otras cuidadoras", casa: "Sí", trabajo: "Sí", nota: "EC1209.01" },
+  { habilidad: "Inyecciones (p. ej., insulina), curaciones, sondas, diálisis en casa", casa: "Solo con indicación del médico", trabajo: "No", nota: "Como servicio pagado corresponde a enfermería con cédula" },
+  { habilidad: "Interpretar signos y decidir un tratamiento", casa: "No", trabajo: "No", nota: "Lo hace el médico" },
 ];
 
 export const DURACIONES_RELEVO = [4, 6, 8];
@@ -458,8 +497,20 @@ export const ZARIT_PREGUNTAS = [
 export const ZARIT_OPCIONES = ["Nunca", "Rara vez", "Algunas veces", "Bastantes veces", "Casi siempre"];
 export const ZARIT_CORTE = 17;
 export const nivelZarit = (p: number) => (p >= ZARIT_CORTE ? "Sobrecarga intensa" : p >= 13 ? "Sobrecarga leve" : "Sin sobrecarga");
-// Una alerta roja se considera atendida a tiempo si alguien la atiende en 30 minutos o menos.
-export const MINUTOS_A_TIEMPO = 30;
+// Una alerta grave se considera atendida a tiempo si alguien responde o la atiende en menos de 15 minutos (meta del piloto).
+export const MINUTOS_A_TIEMPO = 15;
+export const META_HORAS_RELEVO = 16; // horas de relevo al mes para la cuidadora principal (meta del piloto)
+
+// Avisos que cada persona acepta al entrar y que se repiten donde aplican.
+export const AVISOS = {
+  noReemplaza: "Respira no reemplaza a médicos, enfermeras ni servicios de urgencia: orienta y organiza el cuidado. Ante una emergencia, llama al 911.",
+  noRemuneracion: "Registrar habilidades, horas o tutoriales no implica por sí mismo una habilitación para trabajo remunerado. Cobrar depende de la certificación de una institución y del acuerdo con quien contrata.",
+  datos: "Tus datos y los de la persona mayor se usan solo para coordinar su cuidado dentro de tu espacio familiar. No se venden ni se comparten sin consentimiento, y puedes retirarlo cuando quieras.",
+};
+export const HORARIOS_SIGNOS_BASE = ["08:00", "20:00"];
+export const PEDIDOS_PERSONA = ["Necesito compañía", "Necesito ayuda para bañarme", "Me siento mal", "Necesito ir al médico", "Necesito mis medicinas"];
+
+export const CATEGORIAS_GASTO = ["Medicinas", "Despensa", "Consultas y estudios", "Transporte", "Equipo e insumos", "Relevos pagados", "Otros"];
 
 export const ANIMOS = ["Muy bien", "Bien", "Regular", "Triste", "Muy mal"];
 export const SUENOS = ["Dormí bien", "Regular", "Dormí mal"];

@@ -7,10 +7,12 @@ import { certificadas, estadoCertificaciones, fechaDe, habilidades, horasCuidado
 import { diaSemana, fechaISO } from "@/lib/seed";
 import { ROL_TEXTO } from "@/lib/types";
 import { TechTag } from "@/components/TechTag";
+import { ListaNotificaciones, useNotificaciones } from "@/components/Notificaciones";
 import { Avatar, Encabezado, NivelPill, Pill, Tarjeta, Vacio, btnPrimary, btnSecondary } from "@/components/ui";
 
 export default function Inicio() {
   const { db, ahora, usuario, misFamilias, invitaciones, responderInvitacion, responderIntercambio, responderSolicitud, cambiarFamilia } = useData();
+  const avisos = useNotificaciones();
   if (!usuario) return null;
   const hoy = fechaISO(ahora);
   const misRelevos = proximosRelevos(db, null, ahora, 7, usuario.id).slice(0, 5);
@@ -25,6 +27,14 @@ export default function Inicio() {
   return (
     <>
       <Encabezado sub={`${DIAS_LARGOS[diaSemana(ahora)]} ${ahora.getDate()}`} titulo={`Hola, ${usuario.nombre.split(" ")[0]}`} />
+
+      {avisos.length > 0 && (
+        <TechTag k="notificaciones" className="mb-4">
+          <Tarjeta titulo={`Pendientes y avisos (${avisos.length})`}>
+            <ListaNotificaciones lista={avisos} max={5} />
+          </Tarjeta>
+        </TechTag>
+      )}
 
       {invitaciones.length > 0 && (
         <Tarjeta titulo="Te invitaron a un espacio familiar" className="mb-4 border-primario">

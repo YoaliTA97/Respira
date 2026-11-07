@@ -15,14 +15,14 @@ const RELLENO: Record<Tono, { f: string; t: string }> = {
 // La usuaria al centro, la familia alrededor y la red de apoyo en el anillo exterior.
 export function MapaNodos({ centro, nodos, seleccionado, onSelect }: { centro: Nodo; nodos: Nodo[]; seleccionado: string; onSelect: (id: string) => void }) {
   const W = 640;
-  const H = 440;
+  const H = 480;
   const cx = W / 2;
   const cy = H / 2;
   const familia = nodos.filter((n) => !n.red);
   const red = nodos.filter((n) => n.red);
   const pos = (i: number, total: number, r: number, offset: number) => {
     const a = offset + (i / Math.max(total, 1)) * Math.PI * 2;
-    return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r * 0.82 };
+    return { x: cx + Math.cos(a) * r, y: cy - 8 + Math.sin(a) * r * 0.8 };
   };
   const dibujar = (n: Nodo, x: number, y: number, r: number) => {
     const c = RELLENO[n.tono];
@@ -41,17 +41,17 @@ export function MapaNodos({ centro, nodos, seleccionado, onSelect }: { centro: N
   };
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Mapa de nodos de la red de cuidado">
-      <ellipse cx={cx} cy={cy} rx={150} ry={150 * 0.82} fill="none" stroke="#e1e3ec" />
-      {red.length > 0 && <ellipse cx={cx} cy={cy} rx={250} ry={250 * 0.82} fill="none" stroke="#e1e3ec" strokeDasharray="4 5" />}
+      <ellipse cx={cx} cy={cy - 8} rx={150} ry={150 * 0.8} fill="none" stroke="#e1e3ec" />
+      {red.length > 0 && <ellipse cx={cx} cy={cy - 8} rx={250} ry={250 * 0.8} fill="none" stroke="#e1e3ec" strokeDasharray="4 5" />}
       {familia.map((n, i) => {
         const p = pos(i, familia.length, 150, -Math.PI / 2);
-        return <line key={`l-${n.id}`} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="#c9cde0" strokeWidth="1.5" strokeDasharray={n.invitado ? "4 4" : undefined} />;
+        return <line key={`l-${n.id}`} x1={cx} y1={cy - 8} x2={p.x} y2={p.y} stroke="#c9cde0" strokeWidth="1.5" strokeDasharray={n.invitado ? "4 4" : undefined} />;
       })}
       {red.map((n, i) => {
         const p = pos(i, red.length, 250, -Math.PI / 4);
-        return <line key={`l-${n.id}`} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="#2f7fa8" strokeOpacity="0.5" strokeWidth="1.2" strokeDasharray="3 4" />;
+        return <line key={`l-${n.id}`} x1={cx} y1={cy - 8} x2={p.x} y2={p.y} stroke="#2f7fa8" strokeOpacity="0.5" strokeWidth="1.2" strokeDasharray="3 4" />;
       })}
-      {dibujar(centro, cx, cy, 34)}
+      {dibujar(centro, cx, cy - 8, 34)}
       {familia.map((n, i) => {
         const p = pos(i, familia.length, 150, -Math.PI / 2);
         return dibujar(n, p.x, p.y, 26);

@@ -15,8 +15,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={`${outfit.variable} ${atkinson.variable} h-full antialiased`}>
-      <body className="min-h-full bg-canvas font-sans text-ink">
+    // suppressHydrationWarning: algunas extensiones del navegador agregan atributos a <html>/<body>
+    // antes de que cargue React; el contenido de la app se dibuja solo en el cliente (DataProvider).
+    <html lang="es" className={`${outfit.variable} ${atkinson.variable} h-full antialiased`} suppressHydrationWarning>
+      <body className="min-h-full bg-canvas font-sans text-ink" suppressHydrationWarning>
         <DataProvider>
           {children}
           <Aviso />

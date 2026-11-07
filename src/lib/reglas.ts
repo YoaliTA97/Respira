@@ -160,16 +160,16 @@ export function evaluar(m: Medicion, senales: Senal[], u: Umbrales, condiciones:
 
   // Emergencias: llamada a la acción inmediata
   if (s.has("no_responde") || s.has("dolor_pecho") || s.has("dificultad_respirar")) {
-    sube("rojo", "Emergencia: llama al 911", "No responde, tiene dolor de pecho o le cuesta respirar. Esto requiere atención de emergencia ahora.");
+    sube("rojo", "Alerta grave: llama al 911", "No responde, tiene dolor de pecho o le cuesta respirar. Esto requiere atención de emergencia ahora.");
     acciones.add("911");
   }
   if (s.has("caida") && (s.has("no_se_levanta") || s.has("golpe_cabeza"))) {
-    sube("rojo", "Caída con lesión posible", "Después de una caída con golpe en la cabeza o sin poder levantarse, no la muevas y busca atención médica hoy.");
+    sube("rojo", "Alerta grave: caída con lesión posible", "Después de una caída con golpe en la cabeza o sin poder levantarse, no la muevas y busca atención médica hoy.");
     acciones.add("911");
     indicaciones.push("No la levantes ni la muevas si le duele mucho o se golpeó la cabeza.");
   }
   if (trifecta) {
-    sube("rojo", "Alerta médica: trifecta de signos fuera de rango", "Frecuencia cardiaca, frecuencia respiratoria y presión arterial están fuera de rango al mismo tiempo. Lo que necesita excede lo que se puede atender en casa.");
+    sube("rojo", "Alerta grave: trifecta de signos fuera de rango", "Frecuencia cardiaca, frecuencia respiratoria y presión arterial están fuera de rango al mismo tiempo. Lo que necesita excede lo que se puede atender en casa.");
   }
   if (gluNivel === "rojo") {
     sube(
@@ -181,12 +181,12 @@ export function evaluar(m: Medicion, senales: Senal[], u: Umbrales, condiciones:
     );
   }
   if (s.has("confusion")) {
-    sube("rojo", "Confusión repentina", "La confusión que aparece de repente necesita revisión médica hoy.");
+    sube("rojo", "Alerta grave: confusión repentina", "La confusión que aparece de repente necesita revisión médica hoy.");
   }
   if (nivel === "rojo") acciones.add("centros");
 
   // Vigilancia
-  if (fueraTrifecta > 0 && !trifecta) sube("amarillo", "Signos para vigilar", `${fueraTrifecta} de los 3 signos clave está fuera de rango. Vuelve a medir en 15 minutos.`);
+  if (fueraTrifecta > 0 && !trifecta) sube("amarillo", "Vuelve a revisar", `${fueraTrifecta} de los 3 signos clave está fuera del rango que indicó su médico, sin señales de gravedad.`);
   if (gluNivel === "amarillo") sube("amarillo", "Glucosa alta", "La glucosa está por arriba del máximo de su perfil. Ofrécele agua y vuelve a medir antes de la siguiente comida.");
   if (m.temperatura !== undefined && m.temperatura > u.temperatura.max) sube("amarillo", "Temperatura alta", "Tiene temperatura alta. Vuelve a medir en una hora y avisa a su médico si sigue.");
   if (m.dolor !== undefined && m.dolor >= 7) sube("amarillo", "Dolor fuerte", "Reporta dolor fuerte. Anota dónde le duele y avisa a su médico.");
@@ -195,7 +195,7 @@ export function evaluar(m: Medicion, senales: Senal[], u: Umbrales, condiciones:
     acciones.add("tutorial");
   }
   if (s.has("mareo") || s.has("poca_agua") || s.has("sangrado") || s.has("sudoracion")) {
-    sube("amarillo", "Signos para vigilar", "Hay señales que conviene vigilar. Vuelve a registrar en unas horas.");
+    sube("amarillo", "Vuelve a revisar", "Hay señales que conviene vigilar de cerca.");
     if (condiciones.includes("diabetes") && (s.has("mareo") || s.has("sudoracion")) && m.glucosa === undefined) {
       indicaciones.push("Con diabetes, el mareo o el sudor pueden ser una baja de azúcar: mide la glucosa ahora.");
     }
@@ -228,7 +228,7 @@ export function evaluar(m: Medicion, senales: Senal[], u: Umbrales, condiciones:
 }
 
 // Respuesta sin modelo de IA: misma lógica, redactada con plantillas.
-export function respuestaPorReglas(ev: Evaluacion, nombre: string, condiciones: string[]): string {
+export function respuestaPorReglas(ev: Evaluacion, nombre: string, condiciones: string[], revisarEnMin = 15): string {
   const partes: string[] = [];
   if (ev.nivel === "rojo") {
     partes.push(`ALERTA: ${ev.titulo}. ${ev.motivo}`);
@@ -237,6 +237,7 @@ export function respuestaPorReglas(ev: Evaluacion, nombre: string, condiciones: 
     if (ev.notificarFamilia) partes.push("Avisé a los familiares principales por WhatsApp.");
   } else if (ev.nivel === "amarillo") {
     partes.push(`${ev.titulo}. ${ev.motivo}`);
+    partes.push(`Vuelve a medir en ${revisarEnMin} minutos. Si se repite o empeora, Respira lanza la alerta grave. Si no empeora pero sigue igual, contacten a su médico en menos de 24 horas; para un servicio no urgente pueden buscar en SIDECU.`);
   } else {
     partes.push(`Recibí el reporte de ${nombre}. ${ev.motivo}`);
   }

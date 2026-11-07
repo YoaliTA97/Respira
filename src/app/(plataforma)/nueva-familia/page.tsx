@@ -15,7 +15,7 @@ const PASOS = ["La persona que cuidas", "Medicación", "Tu familia", "Permisos"]
 
 const EJEMPLO: FamiliaNueva = {
   nombre: "Familia Ramírez",
-  alcaldia: "Coyoacán",
+  alcaldia: "Iztapalapa",
   parentesco: "Hija",
   paciente: {
     nombre: "Carmen", edad: 81, sexo: "mujer", condiciones: ["diabetes", "caida", "Osteoporosis"], signos: ["glucosa", "fc", "fr", "pa", "conciencia", "dolor"], alergias: ["Sulfas"], evento: "Se cayó al levantarse de la cama.", lesion: "Golpe en la cadera; sin fractura.", movilidad: "con apoyo",
@@ -36,7 +36,7 @@ export default function NuevaFamilia() {
   const router = useRouter();
   const [paso, setPaso] = useState(0);
   const [f, setF] = useState<FamiliaNueva>({
-    nombre: "", alcaldia: usuario?.alcaldia || "Coyoacán", parentesco: "Hija",
+    nombre: "", alcaldia: usuario?.alcaldia || "Iztapalapa", parentesco: "Hija",
     paciente: { nombre: "", edad: 75, sexo: "mujer", condiciones: [], signos: [], alergias: [], evento: "", lesion: "", movilidad: "con apoyo" },
     medicamentos: [], invitaciones: [], consentimiento: { registro: true, alertasWhatsApp: true, indicadores: true },
   });

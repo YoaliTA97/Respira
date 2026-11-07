@@ -77,3 +77,8 @@ h3 {
   font-family: var(--font-atkinson), system-ui, sans-serif;
   font-size: 14px;
 }
+
+@keyframes sello {
+  from { transform: rotate(-8deg) scale(1.7); opacity: 0; }
+  to { transform: rotate(-8deg) scale(1); opacity: 1; }
+}

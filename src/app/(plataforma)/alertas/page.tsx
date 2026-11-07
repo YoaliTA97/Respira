@@ -1,7 +1,7 @@
 "use client";
 
 import { useData } from "@/lib/db";
-import { SIDECU } from "@/lib/catalogos";
+import { AVISOS, SIDECU } from "@/lib/catalogos";
 import { Centros } from "@/components/Centros";
 import { FichaEmergencia } from "@/components/FichaEmergencia";
 import { MensajesAlerta } from "@/components/MensajesAlerta";
@@ -20,6 +20,7 @@ function Alertas() {
     <>
       <Encabezado sub="Comunicación: alertas médicas, avisos por WhatsApp y centros cercanos" titulo="Alertas y centros" acciones={<a href="tel:911" className={btnDanger}>Llamar al 911</a>} />
 
+      <p className="mb-3 text-xs text-muted">{AVISOS.noReemplaza}</p>
       <TechTag k="mi-voz" className="mb-4">
         <FichaEmergencia />
       </TechTag>

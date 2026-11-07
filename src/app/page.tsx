@@ -8,7 +8,7 @@ import { btnPrimary, btnSecondary } from "@/components/ui";
 const SECCIONES = [
   { t: "Red de cuidado", d: "La familia es el nodo principal: disponibilidad, relevos de 4, 6 u 8 horas e intercambio de horas o dinero." },
   { t: "Reporte y alertas", d: "Al recibir a la persona, una nota de voz con sus signos. Si se cumple la trifecta de alerta, aviso por WhatsApp y mapa de centros." },
-  { t: "Capacitación y certificación", d: "Tutoriales según lo que necesita la persona cuidada. Las horas y habilidades desbloquean certificaciones." },
+  { t: "Capacitación y certificación", d: "Tutoriales según lo que necesita la persona mayor. Las horas y habilidades desbloquean certificaciones." },
 ];
 
 export default function Inicio() {

@@ -161,6 +161,23 @@ function Seguimiento() {
             </TechTag>
           )}
 
+          <Tarjeta titulo="Revisión semanal de enfermería">
+            {(() => {
+              const hace7 = new Date(Date.parse(`${(db.lecturas.at(-1)?.fechaHora ?? "2026-01-01T00:00:00").slice(0, 10)}T00:00:00`) - 7 * 86400000).toISOString().slice(0, 10);
+              const recs = db.mensajes.filter((m) => m.familiaId === familia.id && m.de === "asistente" && m.tipo === "respuesta" && m.fechaHora.slice(0, 10) >= hace7);
+              return (
+                <>
+                  <p className="text-sm text-ink-2">En el piloto, una enfermera aliada revisa cada semana las recomendaciones del asistente y los casos dudosos.</p>
+                  <div className="grid grid-cols-2 gap-2 text-center">
+                    <div className="rounded-xl bg-canvas p-2.5"><p className="text-xl font-semibold">{recs.length}</p><p className="text-xs text-muted">recomendaciones esta semana</p></div>
+                    <div className="rounded-xl bg-canvas p-2.5"><p className="text-xl font-semibold">{recs.filter((m) => m.nivel !== "verde").length}</p><p className="text-xs text-muted">casos para revisar</p></div>
+                  </div>
+                  <p className="text-xs text-muted">Simulado en la demo: la revisión y el registro de la enfermera llegan con el piloto.</p>
+                </>
+              );
+            })()}
+          </Tarjeta>
+
           <Tarjeta titulo="Por qué importa">
             <p className="text-sm text-ink-2">Cada registro con evidencia y confirmado por otra persona respalda las horas y habilidades de quien cuida. Es la base para certificarse y acceder a empleo formal, seguro y pensión.</p>
           </Tarjeta>

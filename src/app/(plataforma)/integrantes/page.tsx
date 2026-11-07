@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useData } from "@/lib/db";
 import { DIAS } from "@/lib/catalogos";
 import { fechaISO } from "@/lib/seed";
-import { habilidades, horasCuidado, horasDisponibles, relevoActual } from "@/lib/calculos";
+import { calificacion, habilidades, horasCuidado, horasDisponibles, km, perfilesRed, relevoActual } from "@/lib/calculos";
+import { Estrellas } from "@/components/Graficas";
 import { ROL_TEXTO, type RolFamilia } from "@/lib/types";
 import Link from "next/link";
 import { InvitarPersona } from "@/components/InvitarPersona";
@@ -17,9 +18,10 @@ import { Avatar, Encabezado, Pill, Tarjeta, btnSecondary, input, label } from "@
 const ROLES: RolFamilia[] = ["coordinacion", "cuidado", "apoyo", "avisos"];
 
 function Integrantes() {
-  const { db, ahora, usuario, familia, puede, cambiarRol, setPrincipal, invitar } = useData();
+  const { db, ahora, usuario, familia, paciente, puede, cambiarRol, setPrincipal, invitar } = useData();
   const [sel, setSel] = useState(usuario?.id ?? "");
   const [proyectar, setProyectar] = useState(false);
+  const [etapa, setEtapa] = useState(4);
   if (!familia || !usuario) return null;
 
   const todos = db.membresias.filter((m) => m.familiaId === familia.id).map((m) => ({ m, u: db.usuarios.find((x) => x.id === m.usuarioId)! })).filter((x) => x.u);
@@ -29,9 +31,21 @@ function Integrantes() {
   const redIds = Array.from(new Set(db.relevos.filter((r) => r.familiaId === familia.id && r.origen === "red" && r.asignadoA).map((r) => r.asignadoA!)));
   const nodo = (u: (typeof db.usuarios)[number], detalle: string, extra: Partial<Nodo> = {}): Nodo => ({ id: u.id, nombre: u.nombre, detalle, tono: u.tono, deTurno: turno?.asignadoA === u.id, ...extra });
   const centro = nodo(usuario, "tú");
+  // La red se va abriendo: 1) la familia, 2) quien está cerca (vecinas, cuidadora certificada),
+  // 3) a quien se conecta por el banco de tiempo, 4) la voz de la persona mayor.
+  const minutos = (d: number) => Math.max(2, Math.round(d * 5.5));
+  const cerca = Array.from(new Set([...redIds, ...perfilesRed(db, familia.id, 3).map((p) => p.usuario.id)]))
+    .map((id) => db.usuarios.find((u) => u.id === id)!)
+    .filter(Boolean);
+  const banco = Array.from(new Set(db.banco.filter((b) => b.deUsuarioId === usuario.id || todos.some((x) => x.u.id === b.deUsuarioId)).map((b) => b.paraUsuarioId)))
+    .filter((id) => !todos.some((x) => x.u.id === id) && !cerca.some((u) => u.id === id))
+    .map((id) => db.usuarios.find((u) => u.id === id)!)
+    .filter(Boolean);
+  const familiaNodos = todos.filter((x) => x.u.id !== usuario.id);
   const nodos: Nodo[] = [
-    ...todos.filter((x) => x.u.id !== usuario.id).map((x) => nodo(x.u, x.m.estado === "invitada" ? "invitación pendiente" : ROL_TEXTO[x.m.rol].t, { invitado: x.m.estado === "invitada" })),
-    ...redIds.map((id) => db.usuarios.find((u) => u.id === id)!).filter(Boolean).map((u) => nodo(u, "red de cuidado", { red: true })),
+    ...familiaNodos.filter((x) => x.m.rol !== "persona" || etapa >= 4).map((x) => nodo(x.u, x.m.rol === "persona" ? "Mi voz" : x.m.estado === "invitada" ? "invitación pendiente" : x.m.parentesco, { invitado: x.m.estado === "invitada" })),
+    ...(etapa >= 2 ? cerca.map((u) => nodo(u, `${u.verificado ? (u.seguridadSocial ? "certificada" : "vecina") : "red"} · ${minutos(km(familia.hogar, u.ubicacion))} min`, { red: true })) : []),
+    ...(etapa >= 3 ? banco.map((u) => nodo(u, "banco de tiempo", { red: true })) : []),
   ];
   const elegido = todos.find((x) => x.u.id === sel);
   const elegidoRed = !elegido ? db.usuarios.find((u) => u.id === sel) : null;
@@ -43,11 +57,31 @@ function Integrantes() {
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <TechTag k="mapa-nodos">
           <Tarjeta titulo="Mapa de la red">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {["Familia", "Vecinas y cuidadora", "Banco de tiempo", "Mi voz"].map((t, i) => (
+                <button key={t} type="button" aria-pressed={etapa === i + 1} onClick={() => setEtapa(i + 1)} className={`rounded-full border px-3 py-1 text-xs font-semibold ${etapa === i + 1 ? "border-primario bg-primario text-white" : "border-line bg-white text-ink-2"}`}>
+                  {i + 1}. {t}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="text-xs font-semibold text-primario underline"
+                onClick={() => {
+                  setEtapa(1);
+                  [2, 3, 4].forEach((n, k) => setTimeout(() => setEtapa(n), 1600 * (k + 1)));
+                }}
+              >
+                Ver cómo crece la red
+              </button>
+            </div>
+            <p className="text-sm">
+              Red de cuidado de {paciente?.nombre ?? "la persona mayor"}: <span className="text-lg font-semibold">{nodos.filter((n) => n.id !== paciente?.usuarioId).length} personas</span>
+            </p>
             <MapaNodos centro={centro} nodos={nodos} seleccionado={sel} onSelect={setSel} />
             <div className="flex flex-wrap gap-4 text-xs text-muted">
               <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full border-2 border-green-ink" />De turno ahora</span>
               <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full border border-dashed border-[#a8a8a5]" />Invitación pendiente</span>
-              <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-maya" />Red de cuidado que ha cubierto relevos</span>
+              <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-maya" />Red cercana y banco de tiempo</span>
             </div>
           </Tarjeta>
         </TechTag>
@@ -112,6 +146,7 @@ function Integrantes() {
                   <div className="flex flex-col">
                     <span className="font-semibold">{elegidoRed.nombre}</span>
                     <span className="text-sm text-muted">Red de cuidado · no es integrante del espacio</span>
+                    {calificacion(db, elegidoRed.id).n > 0 && <Estrellas valor={calificacion(db, elegidoRed.id).promedio} n={calificacion(db, elegidoRed.id).n} />}
                   </div>
                 </div>
                 <p className="text-sm text-ink-2">{elegidoRed.bio}</p>

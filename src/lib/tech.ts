@@ -17,10 +17,11 @@ export type TechItem = {
 
 export const TECH = {
   acceso: {
-    titulo: "Inicio de sesión", seccion: "Acceso", modulos: "M1 Red del caso", datos: "Usuario, sesión",
-    servicio: "Supabase Auth con código por SMS o WhatsApp", integracion: "Twilio Verify o proveedor OTP",
-    ahora: "Simulado", detalleAhora: "Código fijo de prueba; la sesión es por pestaña.",
+    titulo: "Inicio de sesión seguro", seccion: "Acceso", modulos: "M1 Red del caso", datos: "Usuario.clave (PBKDF2 con sal), sesión",
+    servicio: "Supabase Auth: contraseña + verificación por código (WhatsApp/SMS)", integracion: "Twilio Verify o proveedor OTP",
+    ahora: "Operando", detalleAhora: "Contraseña con PBKDF2 y sal aleatoria, bloqueo tras 5 intentos, «recordarme» por 12 horas; el código para crear o recuperar la contraseña es simulado (123456).",
   },
+
   perfil: {
     titulo: "Perfil individual", seccion: "Personal", modulos: "M1 Identidad · M10 Certificación", datos: "Usuario: roles, disponibilidad, habilidades, oferta de ayuda",
     servicio: "GET/PATCH /perfil", integracion: "Supabase Auth",
@@ -37,7 +38,7 @@ export const TECH = {
     ahora: "Operando", detalleAhora: "Perfiles que se ofrecen reciben solicitudes y las aceptan desde su cuenta; sin acceso al espacio de la familia.",
   },
   "registro-familia": {
-    titulo: "Alta de la familia y la persona cuidada", seccion: "Acceso", modulos: "M1 Red del caso · M2 Expediente", datos: "Familia, Miembro, Paciente, Consentimiento",
+    titulo: "Alta de la familia y la persona mayor", seccion: "Acceso", modulos: "M1 Red del caso · M2 Expediente", datos: "Familia, Miembro, Paciente, Consentimiento",
     servicio: "POST /familias (transacción)", integracion: "Supabase (PostgreSQL)",
     ahora: "Operando", detalleAhora: "Crea familia, paciente, integrantes, medicación y plan de relevos; guardado en el navegador.",
   },
@@ -104,7 +105,7 @@ export const TECH = {
   centros: {
     titulo: "Mapa de centros de cuidado cercanos", seccion: "Comunicación", modulos: "M11 Directorio", datos: "Centros (DENUE sector 62)",
     servicio: "La alerta redirige a SIDECU; /centros muestra los 5 más cercanos como vista a futuro", integracion: "SIDECU (cuidados.mujeres.gob.mx) · INEGI DENUE",
-    ahora: "Operando", detalleAhora: "Redirección real al sitio de SIDECU; la lista de cercanos usa datos reales del DENUE en Coyoacán.",
+    ahora: "Operando", detalleAhora: "Redirección real al sitio de SIDECU; la lista de cercanos usa datos reales del DENUE en Iztapalapa.",
   },
   medicacion: {
     titulo: "Medicación y tomas", seccion: "Paciente", modulos: "M3 Plan de cuidado", datos: "Medicamento, Toma",
@@ -149,7 +150,7 @@ export const TECH = {
   "historia-clinica": {
     titulo: "Historia clínica y uso de servicios de salud", seccion: "Paciente", modulos: "M2 Expediente", datos: "Paciente.historia, Paciente.servicios",
     servicio: "PATCH /pacientes", integracion: "Expediente de la unidad de salud (fase posterior)",
-    ahora: "Operando", detalleAhora: "Se captura en la valoración y se muestra en la ficha de la persona cuidada.",
+    ahora: "Operando", detalleAhora: "Se captura en la valoración y se muestra en la ficha de la persona mayor.",
   },
   "guias-medicas": {
     titulo: "Guías del médico en video", seccion: "Capacitación", modulos: "M9 Capacitación", datos: "Guía, enlace del video",
@@ -176,9 +177,29 @@ export const TECH = {
     servicio: "GET /unirse?c= con verificación por OTP", integracion: "Twilio Verify (código por WhatsApp)",
     ahora: "Simulado", detalleAhora: "El QR y el código funcionan; se elige el perfil en lugar de confirmar con OTP. Cada navegador tiene su copia de los datos.",
   },
+  notificaciones: {
+    titulo: "Notificaciones que piden acción", seccion: "Comunicación", modulos: "M6 Alertas · M5 Relevos", datos: "Relevos, alertas, lecturas, tomas, solicitudes",
+    servicio: "Reglas de notificación por rol + push del navegador", integracion: "Web Push / WhatsApp (Twilio) en el MVP",
+    ahora: "Operando", detalleAhora: "Horarios sin cubrir, relevos aceptados, pedidos de la persona mayor, alertas sin seguimiento, signos y medicación por registrar.",
+  },
+  terminos: {
+    titulo: "Avisos y consentimiento de datos", seccion: "Acceso", modulos: "M1 · Ética", datos: "Usuario.aceptoTerminos, Paciente.voz.consentimiento",
+    servicio: "Aceptación registrada con fecha", integracion: "Aviso de privacidad (LFPDPPP)",
+    ahora: "Operando", detalleAhora: "Cada cuenta acepta uso de datos, que Respira no reemplaza a los expertos y que registrar habilidades no habilita por sí mismo para cobrar; la persona mayor da o retira su consentimiento.",
+  },
+  gastos: {
+    titulo: "Gastos del cuidado y quién paga", seccion: "Espacio familiar", modulos: "M13 Finanzas familiares", datos: "Gasto, Familia.reparto",
+    servicio: "Resumen por categoría, reparto acordado y transferencias para quedar a mano", integracion: "Comprobantes (Supabase Storage); pagos en el MVP",
+    ahora: "Operando", detalleAhora: "Registro de gastos, reparto por porcentaje y cálculo de quién le pasa a quién; lo que paga la persona mayor se descuenta antes de repartir.",
+  },
+  transicion: {
+    titulo: "Transición de la familia y sus roles", seccion: "Hoy", modulos: "M12 Analítica", datos: "Familia.lineaBase, relevos, Zarit",
+    servicio: "Comparación antes / ahora", integracion: "—",
+    ahora: "Operando", detalleAhora: "La línea base es de ejemplo; el reparto actual se calcula con los relevos de los últimos 7 días.",
+  },
   "mi-voz": {
-    titulo: "Mi voz: la persona cuidada como agente activo", seccion: "Espacio familiar", modulos: "M1 Red del caso · M2 Expediente", datos: "Paciente.voz, Sentir, Aporte, permisos",
-    servicio: "Cuenta propia con rol persona cuidada; permisos que filtran su historial", integracion: "Ley de Voluntad Anticipada de la CDMX (documento adjunto)",
+    titulo: "Mi voz: la persona mayor como agente activo", seccion: "Espacio familiar", modulos: "M1 Red del caso · M2 Expediente", datos: "Paciente.voz, Sentir, Aporte, permisos",
+    servicio: "Cuenta propia con rol persona mayor; permisos que filtran su historial", integracion: "Ley de Voluntad Anticipada de la CDMX (documento adjunto)",
     ahora: "Operando", detalleAhora: "Nota de voz con transcripción, autorreporte, decisiones, permisos, metas y banco de tiempo; los permisos ocultan su historial a quien ella elija.",
   },
   accesos: {

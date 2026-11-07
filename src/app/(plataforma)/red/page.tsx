@@ -5,7 +5,8 @@ import { useState } from "react";
 import { useData } from "@/lib/db";
 import centrosData from "@/data/centros-cdmx.json";
 import { DIAS_LARGOS, SIDECU, nombreEquipo } from "@/lib/catalogos";
-import { certificadas, fechaDe, habilidades, km, perfilesRed, rangoRelevo } from "@/lib/calculos";
+import { calificacion, certificadas, fechaDe, habilidades, km, perfilesRed, rangoRelevo } from "@/lib/calculos";
+import { Estrellas } from "@/components/Graficas";
 import { diaSemana } from "@/lib/seed";
 import { ayudaEnRed } from "@/lib/acceso";
 import { MapaDinamico } from "@/components/MapaDinamico";
@@ -167,12 +168,19 @@ export default function Red() {
                             {u.fuente === "sidecu" && <Pill tono="outline">{SIDECU.nombre}</Pill>}
                             {certs.map((c) => <Pill key={c.id} tono="dark">{c.nombre}</Pill>)}
                           </span>
+                          <span className="flex flex-wrap items-center gap-2">
+                            {calificacion(db, u.id).n > 0 ? <Estrellas valor={calificacion(db, u.id).promedio} n={calificacion(db, u.id).n} /> : <span className="text-xs text-muted">Sin reseñas</span>}
+                            {u.verificado?.identidad && <Pill tono="outline">Identidad verificada</Pill>}
+                            {!!u.verificado?.referencias && <Pill tono="outline">{u.verificado.referencias} referencias</Pill>}
+                            {u.seguridadSocial && <Pill tono="outline">IMSS</Pill>}
+                          </span>
                           <span className="text-xs text-muted">{u.bio}</span>
+                          {calificacion(db, u.id).resenas[0] && <span className="text-xs italic text-ink-2">“{calificacion(db, u.id).resenas[0].comentario}”</span>}
                           <span className="flex flex-wrap gap-1">
                             {habilidades(db, u.id).map((h) => <Pill key={h.tutorial.id}>{h.tutorial.habilidad}</Pill>)}
                             {(u.experiencia ?? []).map((x) => <Pill key={x} tono="outline">{x}</Pill>)}
                           </span>
-                          <Link href={`/cv?u=${u.id}`} className="self-start text-xs font-semibold text-primario underline" onClick={(e) => e.stopPropagation()}>Ver CV de cuidado</Link>
+                          <Link href={`/cv?u=${u.id}`} className="self-start text-xs font-semibold text-primario underline" onClick={(e) => e.stopPropagation()}>Ver CV y reseñas</Link>
                         </span>
                       </button>
                     </li>

@@ -12,7 +12,9 @@ import { TechTag } from "@/components/TechTag";
 import { Avatar, Modal, NivelPill, Segmentado, btnDanger, btnPrimary, btnSecondary, input, label } from "@/components/ui";
 
 const EJEMPLOS = [
-  { t: "Recepción normal", v: "Recibo a mi mamá. Pulso 78, respira 17 por minuto, presión 128 sobre 78, glucosa 140. Dolor 3 de 10, está platicando." },
+  { t: "Recepción normal", v: "Recibo a mi mamá. Pulso 78, respira 17 por minuto, presión 122 sobre 76, glucosa 140. Dolor 3 de 10, está platicando." },
+  { t: "Pálida, presión 90/60", v: "Mi mamá amaneció pálida y la presión salió en 90 sobre 60." },
+  { t: "Vuelvo a medir: empeora", v: "Volví a medir en 15 minutos: la presión salió en 84 sobre 52 y el pulso en 104. Está mareada y sigue pálida." },
   { t: "Trifecta de alerta", v: "La recibo muy decaída. Pulso 132, respira 28 por minuto, presión 84 sobre 50. Está confundida." },
   { t: "Caída con golpe", v: "Se cayó en el baño, se pegó en la cabeza y no se puede levantar." },
   { t: "Glucosa baja", v: "Está sudando y con temblor, glucosa 58." },
@@ -78,6 +80,7 @@ function Chat() {
   const [texto, setTexto] = useState("");
   const [grabando, setGrabando] = useState(false);
   const [form, setForm] = useState(false);
+  const [confirmar, setConfirmar] = useState<string | null>(null);
   const [m, setM] = useState<Record<string, string>>({});
   const fin = useRef<HTMLDivElement | null>(null);
   const mensajes = db.mensajes.filter((x) => x.familiaId === familia?.id);
@@ -144,6 +147,7 @@ function Chat() {
         ) : grabando ? (
           <TechTag k="nota-voz">
             <NotaVoz
+              ejemplo={EJEMPLOS[1].v}
               onCancelar={() => setGrabando(false)}
               onListo={(t, audio) => {
                 setGrabando(false);
@@ -159,9 +163,9 @@ function Chat() {
               </div>
               {modo === "reporte" && (
                 <div className="flex flex-wrap gap-1.5">
-                  <span className="text-xs text-muted">Ejemplos:</span>
+                  <span className="text-xs text-muted">Nota de voz de ejemplo:</span>
                   {EJEMPLOS.map((e) => (
-                    <button key={e.t} type="button" onClick={() => setTexto(e.v)} className="rounded-full border border-line bg-white px-2.5 py-1 text-xs hover:border-primario">{e.t}</button>
+                    <button key={e.t} type="button" disabled={procesando} onClick={() => setConfirmar(e.v)} className="rounded-full border border-line bg-white px-2.5 py-1 text-xs hover:border-primario">{e.t}</button>
                   ))}
                 </div>
               )}
@@ -194,6 +198,21 @@ function Chat() {
           </>
         )}
       </div>
+
+      <Modal abierto={confirmar !== null} onCerrar={() => setConfirmar(null)} titulo="Nota de voz transcrita">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2 rounded-xl bg-canvas px-3 py-2 text-sm text-muted">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
+            Nota de voz de ejemplo · Respira transcribió:
+          </div>
+          <label htmlFor="conf-texto" className="text-xs font-medium text-muted">Revisa y confirma lo que se entendió (una persona confirma cada registro)</label>
+          <textarea id="conf-texto" rows={3} className="resize-none rounded-xl border border-line p-3 text-[15px] outline-none focus:border-primario" value={confirmar ?? ""} onChange={(e) => setConfirmar(e.target.value)} />
+          <div className="flex gap-2">
+            <button type="button" className={btnPrimary} disabled={!confirmar?.trim()} onClick={() => { const t = confirmar ?? ""; setConfirmar(null); void reportar(t, { notaVoz: true }); }}>Confirmar y enviar</button>
+            <button type="button" className={btnSecondary} onClick={() => setConfirmar(null)}>Cancelar</button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal abierto={form} onCerrar={() => setForm(false)} titulo={`Signos de ${paciente.nombre}`}>
         <div className="grid grid-cols-2 gap-3">
