@@ -1,26 +1,26 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Atkinson_Hyperlegible, Outfit } from "next/font/google";
 import "./globals.css";
-import { DemoProvider } from "@/lib/store";
-import { DemoBar } from "@/components/DemoBar";
-import { ToastView } from "@/components/ui";
+import { DataProvider } from "@/lib/db";
+import { Aviso } from "@/components/ui";
 
-const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
+// Outfit para títulos y cifras; Atkinson Hyperlegible (diseñada para baja visión) para leer.
+const outfit = Outfit({ variable: "--font-outfit", subsets: ["latin"], weight: ["500", "600", "700"] });
+const atkinson = Atkinson_Hyperlegible({ variable: "--font-atkinson", subsets: ["latin"], weight: ["400", "700"] });
 
 export const metadata: Metadata = {
-  title: "Respira · demo",
-  description: "La red que cuida a quien cuida. Demo de la app para la red familiar, con su capa técnica.",
+  title: "Respira",
+  description: "Turnarse también es cuidar: red familiar, relevos, alertas y certificación para cuidadoras.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={`${inter.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col bg-canvas font-sans text-ink">
-        <DemoProvider>
-          <DemoBar />
-          <div className="flex flex-1 flex-col">{children}</div>
-          <ToastView />
-        </DemoProvider>
+    <html lang="es" className={`${outfit.variable} ${atkinson.variable} h-full antialiased`}>
+      <body className="min-h-full bg-canvas font-sans text-ink">
+        <DataProvider>
+          {children}
+          <Aviso />
+        </DataProvider>
       </body>
     </html>
   );

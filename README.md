@@ -1,74 +1,60 @@
 # Respira · la red que cuida a quien cuida
 
-Demo operable de la web app de Respira para presentar ante el jurado del hackathon. La familia registra el estado de la persona cuidada y lo que cada quien hace por ella. Ese registro reparte la carga, respalda la certificación de las cuidadoras, les abre financiamiento y activa una red de respiro con personas cercanas que ya saben cuidar.
+Web app (PWA) de Respira para el hackathon BUILD-HER. Cada persona tiene su perfil, que lleva a cualquier espacio familiar y a la red: sus roles, su experiencia y su disponibilidad. El perfil funciona como una cuenta de Notion. Cada familia tiene un espacio privado al que solo se entra por invitación. Ahí registran el estado de la persona que cuidan, se reparten los relevos y reciben alertas. Desde ahí también buscan apoyo en la red de cuidado por radio.
 
-> **Datos sintéticos.** Rosa, su mamá Lucía y su familia son personas ficticias. La demo corre solo en el navegador; no hay backend ni datos reales.
+> **Datos sintéticos.** La familia Hernández, Lucía y los perfiles de la red son ficticios. Solo los centros de salud del mapa son reales (DENUE, INEGI, sector 62).
 
-## Correr la demo
+## Correr
 
 ```bash
 npm install
-npm run dev        # http://localhost:3000
-npm run build && npm run start   # versión de producción
+npm run dev                     # http://localhost:3000
+npm run build && npm run start  # producción
 ```
 
-Para publicarla, cualquier hosting de Next.js funciona (por ejemplo Vercel: importar el repositorio y desplegar sin configuración extra).
+Con Node 20.9 o más reciente. Las variables de entorno son opcionales. Sin ellas, el asistente responde con reglas y el WhatsApp queda en modo simulado.
 
-## Cómo presentarla
+| Variable | Activa |
+| --- | --- |
+| `ANTHROPIC_API_KEY` | El asistente redacta con Claude. Las reglas de alarma siempre corren primero y el modelo nunca baja el nivel. |
+| `ASISTENTE_MODELO` | Modelo del asistente (por defecto `claude-opus-5-5`). |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM` | Alertas reales por WhatsApp a los familiares principales. |
 
-1. Abre `/` y sigue el **Guion para el jurado** (8 pasos, unos 5 minutos).
-2. Abre la app (`/app`) y el panel de la promotora (`/panel`) en **dos pestañas**: las acciones se sincronizan entre pestañas, así la alerta llega en vivo.
-3. Activa **Capa técnica** en la barra superior para marcar, sobre cada elemento, el módulo, los datos, el servicio y la integración que lo respaldan. La página `/tecnico` muestra el mapa completo.
-4. **Reiniciar** vuelve a los datos de ejemplo.
+## Publicar en Netlify
 
-| Paso | Pantalla | Qué se ve |
-| --- | --- | --- |
-| 1 | `/app/crear-red` | Wizard: a quién cuidas, invitar a la familia, permisos |
-| 2 | `/app/registrar` | Wizard: registrar una movilización que Mariana confirma (verificación V2) |
-| 3 | `/app/whatsapp` | Audio de Rosa → resumen → semáforo rojo con el motivo |
-| 4 | `/panel` | La promotora confirma la alerta, canaliza y valida la práctica (V3) |
-| 5 | `/app/turnos` → `/app/relevo` | Hueco del sábado y relevo cercano por radio |
-| 6 | `/panel/cooperativa` | La cooperativa confirma el relevo y se descuenta de la bolsa del DIF |
-| 7 | `/app/pasaporte` | Horas verificadas, habilidades, apoyos elegibles y ruta a CONOCER |
-| 8 | `/panel/indicadores` | Carga de cuidado por género, respiro y alertas revisadas |
+`netlify.toml` ya trae la configuración: build `npm run build`, publicación `.next` y Node 22. Netlify detecta Next.js y despliega las rutas `/api/*` como funciones. Se importa el repositorio, sin directorio base, y se agregan las variables de entorno de la tabla.
 
-## Qué es real y qué es simulado
+## Recorrido
 
-Todo en esta demo es simulado en el navegador. El archivo `src/lib/tech.ts` documenta, para cada elemento de la interfaz, qué lo respaldará en el MVP y si será **real**, **real con datos sembrados**, **simulado** o de **fase posterior**. Ese mismo archivo alimenta la capa técnica y la página `/tecnico`.
+1. `/login` → entra como **Rosa** (coordina el espacio de la familia Hernández). El código de acceso de la demo es `123456`.
+2. **Inicio**: su perfil, sus espacios y sus próximos relevos.
+3. **Resumen** del espacio: estado de Lucía, cobertura, medicación y quién cuidó.
+4. **Lucía**: condición médica con etiquetas propias, signos a vigilar, alergias, umbrales y medicación.
+5. **Chat y reportes** → ejemplo "Trifecta de alerta". Sale una alerta roja, el aviso por WhatsApp y los centros cercanos.
+6. **Relevos**: semana de turnos, el sábado sin cubrir, intercambio de horas o búsqueda en la red por radio.
+7. **Integrantes**: mapa de nodos y alta de personas. Si ya tienen perfil, se vinculan con su teléfono.
+8. Abre otra pestaña como **Jorge** o **Lupita** para aceptar intercambios, invitaciones o solicitudes de la red.
+9. `/registro` y **Crear espacio**: alta de una familia nueva con el ejemplo de caída y diabetes.
 
-Stack del MVP (decidido: web app / PWA):
+Activa **Capa técnica** en la barra lateral para ver, sobre cada elemento, qué lo respalda. `/tecnico` muestra el mapa completo: qué opera, qué opera si se configura y qué es simulado.
 
-- **Frente:** Next.js con dos áreas, `/app` (teléfono) y `/panel` (escritorio).
-- **Datos y acceso:** Supabase (PostgreSQL con PostGIS y pgvector, autenticación por OTP, almacenamiento).
-- **Agentes:** FastAPI para el webhook de WhatsApp (sandbox de Twilio), faster-whisper para voz a texto, reglas de alarma antes del LLM, Claude Haiku 5.5 con herramientas.
-- **Directorio:** DENUE sector 62 y CLUES, en lugar de SIDECU durante el MVP.
+## Límites de la demo
+
+- Los datos viven en el navegador (`localStorage`). Cada visitante tiene su propia copia, y las pestañas del mismo navegador se sincronizan. Para varios teléfonos hace falta el backend (Supabase con políticas por membresía).
+- El acceso por código y la aprobación de certificaciones están simulados. Los videos de tutoriales todavía no existen.
 
 ## Estructura
 
 ```
 src/
   app/
-    page.tsx              Portada y guion para el jurado
-    app/                  Web app de la familia (marco de teléfono en escritorio)
-      crear-red/          Wizard: red familiar y consentimiento
-      registrar/          Wizard: registrar estado y acciones con verificación
-      turnos/             Turnos de la familia y huecos
-      relevo/             Wizard: relevo cercano por radio
-      pasaporte/          Pasaporte de Cuidado y financiamiento
-      whatsapp/           Simulación del canal de WhatsApp
-    panel/                Paneles web: promotora, cooperativa, indicadores
-    tecnico/              Mapa técnico de la demo
-  components/             Barra de demo, capa técnica, guion y componentes de UI
-  lib/
-    seed.ts               Datos sintéticos (Rosa y su red)
-    store.tsx             Estado de la demo (localStorage, sincronizado entre pestañas)
-    rules.ts              Reglas de alarma del semáforo y proyecciones (horas, carga, elegibilidad)
-    tech.ts               Mapa técnico: qué respalda cada elemento
+    page.tsx            Portada
+    login/ registro/    Acceso y alta de perfil
+    (plataforma)/       App con sesión: inicio, perfil, red, capacitación y el espacio familiar
+    centros/            Mapa público de centros (DENUE)
+    tecnico/            Mapa técnico
+    api/asistente/      Reglas + Claude
+    api/whatsapp/       Envío por Twilio
+  components/           UI, mapas, etiquetas, alta de integrantes, condición médica
+  lib/                  Tipos, catálogos, reglas, cálculos, semilla y proveedor de datos
 ```
-
-## Reglas de la demo
-
-- **Semáforo:** reglas deterministas (confusión repentina, caída → rojo; poca agua, dolor → amarillo). Nunca depende de un LLM.
-- **Verificación:** V0 autorreporte · V1 con evidencia · V2 confirmado por otra persona · V3 validado por la promotora.
-- **Nivel C2:** microcurso + 3 prácticas validadas por la promotora.
-- **Elegibilidad de ejemplo:** 250 h verificadas y 2 habilidades en C2. La regla real la define cada pagador.

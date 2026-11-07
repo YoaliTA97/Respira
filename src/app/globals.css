@@ -1,15 +1,29 @@
 @import "tailwindcss";
 
+/* Identidad D · Relevo, con el primario llevado de morado a azul añil (salud).
+   Rojo, ámbar y verde no son de marca: solo significan el semáforo de salud. */
 @theme inline {
-  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-sans: var(--font-atkinson), system-ui, sans-serif;
+  --font-display: var(--font-outfit), var(--font-atkinson), sans-serif;
 
-  --color-ink: #171717;
-  --color-ink-2: #3a3a3a;
-  --color-muted: #626262;
-  --color-line: #e6e6e3;
-  --color-line-soft: #efefed;
-  --color-canvas: #f5f5f4;
-  --color-chip: #f0f0ee;
+  /* Texto: nunca menos de 14 px */
+  --text-xs: 0.875rem;
+  --text-xs--line-height: 1.35;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.45;
+
+  --color-primario: #2e3f8f; /* añil: marca y botones */
+  --color-primario-oscuro: #24326f;
+  --color-maya: #2f7fa8; /* azul maya: la otra persona, relevo y red */
+  --color-realce: #e3e7f6; /* zonas y tarjetas */
+
+  --color-ink: #1b1e33; /* tinta */
+  --color-ink-2: #34384f;
+  --color-muted: #565c75; /* texto suave */
+  --color-line: #e1e3ec;
+  --color-line-soft: #eceef4;
+  --color-canvas: #f9f7f2; /* cal */
+  --color-chip: #eef0f7;
 
   --color-red-ink: #b3261e;
   --color-red-bg: #fcebe9;
@@ -19,30 +33,32 @@
   --color-green-ink: #1b6b3a;
   --color-green-bg: #e7f4ec;
 
-  --color-tech: #2453d6;
-  --color-tech-bg: #eef3ff;
-
-  --color-tone-dark: #171717;
-  --color-tone-mid: #6b6b6b;
-  --color-tone-light: #d4d4d2;
+  --color-tech: #9c2f77; /* capa técnica, fuera de la paleta de marca */
+  --color-tech-bg: #f8e9f3;
 }
 
 html,
 body {
   background: var(--color-canvas);
   color: var(--color-ink);
+  font-size: 16px;
 }
 
-/* Superficies de vidrio: barras y controles que flotan sobre el contenido */
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+}
+
 .glass {
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.74);
   backdrop-filter: blur(18px) saturate(160%);
   -webkit-backdrop-filter: blur(18px) saturate(160%);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(27, 30, 51, 0.07);
 }
 
 .glass-canvas {
-  background: rgba(245, 245, 244, 0.72);
+  background: rgba(249, 247, 242, 0.78);
   backdrop-filter: blur(18px) saturate(160%);
   -webkit-backdrop-filter: blur(18px) saturate(160%);
 }
@@ -54,4 +70,10 @@ body {
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+/* Tooltip de Leaflet con la tipografía de la app */
+.leaflet-tooltip {
+  font-family: var(--font-atkinson), system-ui, sans-serif;
+  font-size: 14px;
 }

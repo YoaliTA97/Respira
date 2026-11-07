@@ -1,104 +1,167 @@
-import type { DemoState } from "./types";
+import { UMBRALES_BASE } from "./catalogos";
+import centros from "@/data/centros-cdmx.json";
+import type { DB, Disponibilidad, Relevo, Usuario } from "./types";
 
-// Datos sintéticos de la demo: Rosa (persona ficticia) cuida a su mamá Lucía.
-// Ningún dato corresponde a una persona real.
+// Datos sintéticos: la familia Hernández, Lucía y los perfiles de la red son ficticios.
+// Solo los centros de salud del mapa son datos reales (DENUE, INEGI).
 
-export const CASO_ROSA = "caso-rosa";
-export const STORAGE_KEY = "respira-demo-v1";
-export const SEED_VERSION = 1;
+export const DB_VERSION = 5;
+export const CODIGO_DEMO = "123456";
+export const FAMILIA_DEMO = "fam-hernandez";
 
-export function createSeed(): DemoState {
+export const fechaISO = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+const masDias = (d: Date, n: number) => {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+};
+
+export const diaSemana = (d: Date) => (d.getDay() + 6) % 7; // lunes = 0
+
+export const semana = (inicio: number, fin: number, dias = [0, 1, 2, 3, 4, 5, 6]): Disponibilidad =>
+  Object.fromEntries([0, 1, 2, 3, 4, 5, 6].map((d) => [d, dias.includes(d) ? [{ inicio, fin }] : []]));
+
+const sinAyuda: Usuario["ofreceAyuda"] = { activo: false, radioKm: 3, modalidades: ["intercambio de horas"], tarifaHora: 0 };
+
+export function crearSeed(hoy: Date): DB {
+  const H = centros.hogar;
+  const creado = `${fechaISO(masDias(hoy, -30))}T10:00:00`;
+  const hace3 = fechaISO(masDias(hoy, -3));
+  const antier = fechaISO(masDias(hoy, -2));
+  const ayer = fechaISO(masDias(hoy, -1));
+  const hoyISO = fechaISO(hoy);
+
+  const usuario = (u: Partial<Usuario> & Pick<Usuario, "id" | "nombre" | "telefono" | "genero" | "tono">): Usuario => ({
+    alcaldia: "Coyoacán",
+    ubicacion: { lat: H.lat, lng: H.lng },
+    bio: "",
+    roles: [],
+    experiencia: [],
+    disponibilidad: {},
+    ofreceAyuda: sinAyuda,
+    saldoHoras: 0,
+    creadoEn: creado,
+    ...u,
+  });
+
+  const relevos: Relevo[] = [];
+  for (let i = -14; i <= 7; i++) {
+    const dia = masDias(hoy, i);
+    const ds = diaSemana(dia);
+    const f = fechaISO(dia);
+    const tarde = ds === 1 || ds === 3 ? "u-mariana" : "u-rosa";
+    const noche = ds <= 4 ? "u-jorge" : "u-rosa";
+    // el próximo sábado queda sin cubrir; hace 5 días Lupita (red de cuidado) cubrió la mañana
+    const manana = i > 0 && ds === 5 ? null : i === -5 ? "u-lupita" : "u-rosa";
+    relevos.push(
+      { id: `r-${f}-7`, familiaId: FAMILIA_DEMO, fecha: f, inicio: 7, horas: 6, asignadoA: manana, origen: i === -5 ? "red" : "familia" },
+      { id: `r-${f}-13`, familiaId: FAMILIA_DEMO, fecha: f, inicio: 13, horas: 6, asignadoA: tarde, origen: "familia" },
+      { id: `r-${f}-19`, familiaId: FAMILIA_DEMO, fecha: f, inicio: 19, horas: 4, asignadoA: noche, origen: "familia" },
+    );
+  }
+
   return {
-    version: SEED_VERSION,
-    casoId: CASO_ROSA,
-    recipient: {
-      nombre: "Lucía",
-      relacion: "mamá",
-      condiciones: ["Diabetes"],
-      municipio: "Municipio piloto",
-    },
-    members: [
-      { id: "m-rosa", nombre: "Rosa", relacion: "Coordina el cuidado", ayuda: "A diario", estado: "Tú", genero: "mujer", tono: "dark", horasBaseSemana: 31 },
-      { id: "m-mariana", nombre: "Mariana", relacion: "Hija", ayuda: "Algunos días", estado: "Aceptó", genero: "mujer", tono: "light", horasBaseSemana: 4 },
-      { id: "m-jorge", nombre: "Jorge", relacion: "Hermano", ayuda: "Algunos días", estado: "Invitado", genero: "hombre", tono: "mid", horasBaseSemana: 6 },
+    version: DB_VERSION,
+    usuarios: [
+      usuario({ id: "u-rosa", nombre: "Rosa Hernández", telefono: "5510000001", genero: "mujer", tono: "t1", bio: "Cuido a mi mamá desde su caída. Dejé mi trabajo de medio tiempo.", roles: ["Cuidar a mi familiar", "Coordinar a la familia", "Llevar a consultas"], experiencia: ["Medir glucosa"], disponibilidad: semana(7, 23) }),
+      usuario({ id: "u-jorge", nombre: "Jorge Hernández", telefono: "5510000002", genero: "hombre", tono: "t2", roles: ["Cuidar a mi familiar"], disponibilidad: { ...semana(19, 23, [0, 1, 2, 3, 4]), 5: [{ inicio: 9, fin: 14 }] } }),
+      usuario({ id: "u-mariana", nombre: "Mariana López", telefono: "5510000003", genero: "mujer", tono: "t3", roles: ["Cuidar a mi familiar", "Acompañamiento"], disponibilidad: { ...semana(13, 20, [1, 3]), 6: [{ inicio: 10, fin: 18 }] } }),
+      usuario({
+        id: "u-lupita", nombre: "Lupita Méndez", telefono: "5510000004", genero: "mujer", tono: "t4", bio: "Cuidadora en cooperativa. Cuidé a mi papá 8 años.",
+        roles: ["Hacer relevos en la red"], experiencia: ["Primeros auxilios", "Cuidado de demencia"], disponibilidad: semana(6, 22), ubicacion: { lat: H.lat + 0.008, lng: H.lng + 0.006 },
+        ofreceAyuda: { activo: true, radioKm: 5, modalidades: ["pago", "programa de apoyo"], tarifaHora: 120 },
+      }),
+      usuario({
+        id: "u-chela", nombre: "Chela Ramírez", telefono: "5510000005", genero: "mujer", tono: "t5", bio: "Vecina de la colonia; cuidé a mi mamá 6 años.",
+        roles: ["Hacer relevos en la red", "Acompañamiento", "Compras y mandados"], experiencia: ["Preparar comida para diabetes"], disponibilidad: semana(8, 18), ubicacion: { lat: H.lat + 0.003, lng: H.lng - 0.003 },
+        ofreceAyuda: { activo: true, radioKm: 2, modalidades: ["intercambio de horas", "pago"], tarifaHora: 80 },
+      }),
+      usuario({
+        id: "u-teresa", nombre: "Teresa Gómez", telefono: "5510000006", genero: "mujer", tono: "t2", roles: ["Hacer relevos en la red"], experiencia: ["Rehabilitación"],
+        disponibilidad: semana(7, 15, [0, 1, 2, 3, 4, 5]), ubicacion: { lat: H.lat - 0.018, lng: H.lng + 0.012 },
+        ofreceAyuda: { activo: true, radioKm: 4, modalidades: ["pago"], tarifaHora: 90 },
+      }),
+      usuario({
+        id: "u-alberto", nombre: "Alberto Pérez", telefono: "5510000007", genero: "hombre", tono: "t5", bio: "Enfermero general.", roles: ["Hacer relevos en la red", "Cuidado nocturno"], experiencia: ["Enfermería", "Manejo de sonda", "Oxígeno en casa"],
+        disponibilidad: semana(7, 23), ubicacion: { lat: H.lat + 0.03, lng: H.lng - 0.022 },
+        ofreceAyuda: { activo: true, radioKm: 8, modalidades: ["pago", "programa de apoyo"], tarifaHora: 150 },
+      }),
+      usuario({
+        id: "u-guadalupe", nombre: "Guadalupe Torres", telefono: "5510000008", genero: "mujer", tono: "t3", roles: ["Hacer relevos en la red"], experiencia: ["Pie diabético"],
+        disponibilidad: semana(6, 20), ubicacion: { lat: H.lat - 0.055, lng: H.lng - 0.04 }, alcaldia: "Tlalpan",
+        ofreceAyuda: { activo: true, radioKm: 10, modalidades: ["pago"], tarifaHora: 130 },
+      }),
     ],
-    consent: { registro: true, promotora: true, indicadores: true },
-    events: [
+    familias: [
       {
-        id: "e-seed-1", casoId: CASO_ROSA, actorId: "m-mariana", actorNombre: "Mariana", tipo: "accion",
-        categoria: "Comida", competencia: "alimentacion", detalle: "Cena y acompañamiento", hora: "Ayer 21:00",
-        canal: "app", verificacion: "V0", senales: ["tranquila"], duracionMin: 45,
-      },
-      {
-        id: "e-seed-2", casoId: CASO_ROSA, actorId: "m-jorge", actorNombre: "Jorge", tipo: "observacion",
-        categoria: "Glucosa", detalle: "Anotó la glucosa de la noche", hora: "Ayer 22:10",
-        canal: "app", evidencia: "foto", verificacion: "V1", senales: [], duracionMin: 5,
-      },
-      {
-        id: "e-seed-3", casoId: CASO_ROSA, actorId: "m-rosa", actorNombre: "Rosa", tipo: "accion",
-        categoria: "Medicamento", competencia: "medicamentos", detalle: "Le dio su medicamento de la mañana", hora: "Hoy 7:30",
-        canal: "app", confirmadoPor: "Mariana", verificacion: "V2", senales: [], duracionMin: 10,
-      },
-    ],
-    alerts: [
-      {
-        id: "a-seed-juana", casoId: "caso-juana", persona: "Juana", cuidaA: "su esposo", nivel: "rojo",
-        resumen: "Caída, no puede levantarse solo", motivo: "Una caída en una persona mayor necesita revisión aunque parezca leve.",
-        reglas: ["Caída reportada"], senalesIA: [], hora: "8:28", creadaMs: 0, estado: "pendiente",
-        transcripcion: "Se cayó al salir del baño y no lo puedo levantar sola.",
-      },
-      {
-        id: "a-seed-martha", casoId: "caso-martha", persona: "Martha", cuidaA: "su mamá", nivel: "amarillo",
-        resumen: "Dolor de rodilla al caminar", motivo: "El dolor al caminar aumenta el riesgo de caídas; conviene vigilarlo.",
-        reglas: ["Dolor reportado"], senalesIA: [], hora: "7:50", creadaMs: 0, estado: "pendiente",
-      },
-      {
-        id: "a-seed-carmen", casoId: "caso-carmen", persona: "Carmen", cuidaA: "su papá", nivel: "verde",
-        resumen: "Durmió bien y comió completo", motivo: "Sin señales de alarma.",
-        reglas: [], senalesIA: [], hora: "7:10", creadaMs: 0, estado: "confirmada",
+        id: FAMILIA_DEMO, nombre: "Familia Hernández", alcaldia: "Coyoacán", hogar: { lat: H.lat, lng: H.lng, referencia: "Santa Úrsula Coapa, Coyoacán (punto de ejemplo)" },
+        creadaPor: "u-rosa", creadaEn: `${hace3}T18:00:00`, consentimiento: { registro: true, alertasWhatsApp: true, indicadores: true, fecha: `${hace3}T18:00:00` },
       },
     ],
-    shifts: {
-      Lun: { Mañana: "m-rosa", Tarde: "m-rosa", Noche: "m-rosa" },
-      Mar: { Mañana: "m-rosa", Tarde: "m-mariana", Noche: "m-rosa" },
-      Mié: { Mañana: "m-rosa", Tarde: "m-rosa", Noche: "m-jorge" },
-      Jue: { Mañana: "m-rosa", Tarde: "m-mariana", Noche: "m-rosa" },
-      Vie: { Mañana: "m-rosa", Tarde: "m-rosa", Noche: "m-jorge" },
-      Sáb: { Mañana: null, Tarde: "m-rosa", Noche: "m-rosa" },
-      Dom: { Mañana: "m-rosa", Tarde: "m-jorge", Noche: "m-rosa" },
-    },
-    helpers: [
-      { id: "h-chela", nombre: "Chela R.", iniciales: "CR", descripcion: "Vecina", nivel: "C2", distanciaKm: 0.6, habilidades: ["Acompañamiento", "Alimentación"], disponible: true },
-      { id: "h-lupita", nombre: "Lupita M.", iniciales: "LM", descripcion: "Cooperativa de cuidado", nivel: "C3", distanciaKm: 1.2, habilidades: ["Movilización", "Medicamentos"], disponible: true },
-      { id: "h-teresa", nombre: "Teresa G.", iniciales: "TG", descripcion: "Cuidadora de la red", nivel: "C2", distanciaKm: 2.6, habilidades: ["Movilización", "Alimentación"], disponible: true },
-      { id: "h-beto", nombre: "Alberto P.", iniciales: "AP", descripcion: "Cooperativa de cuidado", nivel: "C3", distanciaKm: 4.3, habilidades: ["Movilización", "Primeros auxilios"], disponible: true },
+    membresias: [
+      { id: "mb-rosa", familiaId: FAMILIA_DEMO, usuarioId: "u-rosa", rol: "coordinacion", parentesco: "Hija", principal: true, estado: "activa", desde: hace3 },
+      { id: "mb-jorge", familiaId: FAMILIA_DEMO, usuarioId: "u-jorge", rol: "cuidado", parentesco: "Hijo", principal: true, estado: "activa", desde: hace3 },
+      { id: "mb-mariana", familiaId: FAMILIA_DEMO, usuarioId: "u-mariana", rol: "cuidado", parentesco: "Nieta", principal: false, estado: "activa", desde: hace3 },
     ],
-    relevos: [
-      { id: "r-seed-martha", casoId: "caso-martha", familia: "Martha", dia: "Vie", slot: "Tarde", horario: "15:00 a 19:00", helperId: "h-teresa", helperNombre: "Teresa G.", pagador: "Empleador (ejemplo)", estado: "confirmado" },
-      { id: "r-seed-juana", casoId: "caso-juana", familia: "Juana", dia: "Jue", slot: "Mañana", horario: "8:00 a 12:00", helperId: "h-lupita", helperNombre: "Lupita M.", pagador: "DIF municipal", estado: "terminado" },
+    pacientes: [
+      {
+        id: "p-lucia", familiaId: FAMILIA_DEMO, nombre: "Lucía", edad: 78, sexo: "mujer", condiciones: ["diabetes", "caida", "Cataratas"], alergias: ["Penicilina"],
+        evento: { tipo: "caida", fecha: hace3, descripcion: "Se resbaló en el baño.", lesion: "Sin fractura según urgencias; dolor en la cadera izquierda." },
+        movilidad: "con apoyo", signos: ["fc", "fr", "pa", "glucosa", "dolor", "conciencia"], umbrales: UMBRALES_BASE,
+        notas: "Usa bastón desde la caída. Dormitorio en planta baja.",
+      },
     ],
-    skills: [
-      { id: "medicamentos", nombre: "Manejo de medicamentos", microcurso: true, practicasValidadas: 5, certificada: false },
-      { id: "alimentacion", nombre: "Alimentación e hidratación", microcurso: true, practicasValidadas: 4, certificada: false },
-      { id: "movilizacion", nombre: "Movilización segura", microcurso: true, practicasValidadas: 2, certificada: false },
-      { id: "primeros_auxilios", nombre: "Primeros auxilios", microcurso: true, practicasValidadas: 0, certificada: false },
+    medicamentos: [
+      { id: "med-1", familiaId: FAMILIA_DEMO, nombre: "Metformina", dosis: "Según receta", horarios: ["08:00", "20:00"], indicaciones: "Con alimentos." },
+      { id: "med-2", familiaId: FAMILIA_DEMO, nombre: "Insulina", dosis: "Según receta", horarios: ["22:00"], indicaciones: "Aplicación subcutánea; rotar sitio." },
+      { id: "med-3", familiaId: FAMILIA_DEMO, nombre: "Analgésico indicado en urgencias", dosis: "Según receta", horarios: ["08:00", "16:00"], indicaciones: "Solo los días que indicó el médico." },
     ],
-    chat: [
-      { id: "c-0", de: "bot", tipo: "texto", texto: "Buenos días, Rosa. ¿Cómo amaneció tu mamá? Mándame un audio cuando puedas.", hora: "8:30" },
+    tomas: [
+      { id: "t-1", medicamentoId: "med-1", fecha: hoyISO, horario: "08:00", estado: "dada", porUsuarioId: "u-rosa", registradaEn: `${hoyISO}T08:05:00` },
+      { id: "t-2", medicamentoId: "med-3", fecha: hoyISO, horario: "08:00", estado: "dada", porUsuarioId: "u-rosa", registradaEn: `${hoyISO}T08:06:00` },
     ],
-    chatFase: "inicio",
-    ofrecerAcompanamiento: false,
-    bolsa: { pagador: "DIF municipal", totalHoras: 400, usadasHoras: 96 },
-    base: { horasRegistradas: 403, horasVerificadas: 286, respiroHoras: 12, microcursos: 5 },
-    techMode: false,
+    lecturas: [
+      { id: "l-0", familiaId: FAMILIA_DEMO, fechaHora: `${hace3}T19:20:00`, porUsuarioId: "u-jorge", fc: 92, fr: 20, paSist: 145, paDiast: 88, glucosa: 188, dolor: 7, conciencia: "alerta", senales: ["caida"], origen: "nota de voz", nivel: "amarillo" },
+      { id: "l-1", familiaId: FAMILIA_DEMO, fechaHora: `${antier}T07:15:00`, porUsuarioId: "u-rosa", fc: 76, fr: 17, paSist: 128, paDiast: 78, glucosa: 135, dolor: 5, conciencia: "alerta", senales: [], origen: "nota de voz", nivel: "verde" },
+      { id: "l-2", familiaId: FAMILIA_DEMO, fechaHora: `${ayer}T19:05:00`, porUsuarioId: "u-jorge", fc: 80, fr: 18, paSist: 132, paDiast: 80, glucosa: 162, dolor: 4, conciencia: "alerta", senales: [], origen: "nota de voz", nivel: "verde" },
+      { id: "l-3", familiaId: FAMILIA_DEMO, fechaHora: `${hoyISO}T07:10:00`, porUsuarioId: "u-rosa", fc: 74, fr: 16, paSist: 125, paDiast: 76, glucosa: 118, dolor: 3, conciencia: "alerta", senales: [], origen: "nota de voz", nivel: "verde" },
+    ],
+    relevos,
+    intercambios: [],
+    solicitudes: [],
+    mensajes: [
+      { id: "msg-1", familiaId: FAMILIA_DEMO, de: "asistente", tipo: "sistema", fechaHora: `${hace3}T18:01:00`, texto: "Se creó el espacio de cuidado de Lucía. Al recibirla en cada relevo, graben una nota de voz con su frecuencia cardiaca, respiración, presión, glucosa, dolor y cómo está de alerta." },
+      { id: "msg-2", familiaId: FAMILIA_DEMO, de: "u-mariana", tipo: "texto", fechaHora: `${hace3}T20:12:00`, texto: "El martes y jueves en la tarde me quedo con la abuela." },
+      { id: "msg-3", familiaId: FAMILIA_DEMO, de: "u-jorge", tipo: "nota de voz", fechaHora: `${ayer}T19:05:00`, texto: "Recibo a mi mamá. Pulso 80, respira 18 por minuto, presión 132 sobre 80, glucosa 162. Dolor 4 de 10, está platicando." },
+      {
+        id: "msg-4", familiaId: FAMILIA_DEMO, de: "asistente", tipo: "respuesta", nivel: "verde", fuente: "reglas", fechaHora: `${ayer}T19:05:30`,
+        texto: "Recibí el reporte de Lucía. Los signos que registraste están dentro de los rangos de su perfil. Prevención: retira tapetes y cables del camino al baño y a la cama.",
+        hallazgos: [
+          { etiqueta: "Frecuencia cardiaca", valor: "80 lpm", estado: "normal" },
+          { etiqueta: "Frecuencia respiratoria", valor: "18 rpm", estado: "normal" },
+          { etiqueta: "Presión arterial", valor: "132/80 mmHg", estado: "normal" },
+          { etiqueta: "Glucosa", valor: "162 mg/dL", estado: "normal" },
+        ],
+      },
+    ],
+    alertas: [],
+    progreso: [
+      { tutorialId: "signos-vitales", usuarioId: "u-rosa", completado: true, fecha: hace3, practicas: 6 },
+      { tutorialId: "glucosa", usuarioId: "u-rosa", completado: true, fecha: hace3, practicas: 5 },
+      { tutorialId: "movilizacion", usuarioId: "u-rosa", completado: true, fecha: antier, practicas: 2 },
+      { tutorialId: "signos-vitales", usuarioId: "u-jorge", completado: true, fecha: antier, practicas: 2 },
+      ...["signos-vitales", "insulina", "heridas", "movilizacion", "prevencion-caidas"].map((t) => ({ tutorialId: t, usuarioId: "u-lupita", completado: true, fecha: creado.slice(0, 10), practicas: 20 })),
+      ...["movilizacion", "glucosa"].map((t) => ({ tutorialId: t, usuarioId: "u-chela", completado: true, fecha: creado.slice(0, 10), practicas: 10 })),
+      ...["movilizacion", "prevencion-caidas"].map((t) => ({ tutorialId: t, usuarioId: "u-teresa", completado: true, fecha: creado.slice(0, 10), practicas: 8 })),
+      ...["signos-vitales", "insulina", "heridas"].map((t) => ({ tutorialId: t, usuarioId: "u-alberto", completado: true, fecha: creado.slice(0, 10), practicas: 30 })),
+      ...["signos-vitales", "glucosa", "pies"].map((t) => ({ tutorialId: t, usuarioId: "u-guadalupe", completado: true, fecha: creado.slice(0, 10), practicas: 15 })),
+    ],
+    certificaciones: [
+      { id: "cuidados-basicos-1", usuarioId: "u-lupita", estado: "certificada", fecha: creado.slice(0, 10) },
+      { id: "cuidados-basicos-1", usuarioId: "u-alberto", estado: "certificada", fecha: creado.slice(0, 10) },
+      { id: "cuidado-diabetes", usuarioId: "u-guadalupe", estado: "certificada", fecha: creado.slice(0, 10) },
+    ],
   };
 }
-
-export const SKILL_C2_PRACTICAS = 3;
-
-// Directorio de ejemplo. En el MVP sale de DENUE sector 62 y CLUES (sustituto de SIDECU).
-export const DIRECTORIO = [
-  { id: "d-1", nombre: "Centro de Salud comunitario", fuente: "CLUES", distancia: "1.1 km", horario: "abre hasta las 20:00" },
-  { id: "d-2", nombre: "Unidad de Medicina Familiar", fuente: "CLUES · IMSS", distancia: "2.4 km", horario: "abre las 24 horas" },
-  { id: "d-3", nombre: "Consultorio médico de la colonia", fuente: "DENUE 621", distancia: "0.8 km", horario: "abre hasta las 18:00" },
-];

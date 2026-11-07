@@ -1,0 +1,7 @@
+# Netlify detecta Next.js y aplica su adaptador: páginas estáticas en el CDN y /api/* como funciones.
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"

@@ -1,83 +1,65 @@
 "use client";
 
 import Link from "next/link";
-import { GuionLista } from "@/components/Guion";
-import { Logo } from "@/components/DemoBar";
+import { useData } from "@/lib/db";
+import { Logo } from "@/components/Logo";
 import { btnPrimary, btnSecondary } from "@/components/ui";
 
-const CICLO = [
-  { t: "Registro familiar", d: "Estado de la persona cuidada y quién hizo qué" },
-  { t: "Evidencia verificada", d: "Lo que confirma otra persona o la promotora" },
-  { t: "Certificación", d: "Por experiencia, de C1 a C3 con CONOCER" },
-  { t: "Financiamiento", d: "Apoyos y respiro pagados por terceros" },
-  { t: "Red de respiro", d: "Quien ya sabe cuidar releva a otras familias" },
+const SECCIONES = [
+  { t: "Red de cuidado", d: "La familia es el nodo principal: disponibilidad, relevos de 4, 6 u 8 horas e intercambio de horas o dinero." },
+  { t: "Reporte y alertas", d: "Al recibir a la persona, una nota de voz con sus signos. Si se cumple la trifecta de alerta, aviso por WhatsApp y mapa de centros." },
+  { t: "Capacitación y certificación", d: "Tutoriales según lo que necesita la persona cuidada. Las horas y habilidades desbloquean certificaciones." },
 ];
 
-const ROLES = [
-  { href: "/app", t: "Familia", d: "Web app para el teléfono: inicio, registrar, turnos, red y Pasaporte" },
-  { href: "/app/whatsapp", t: "WhatsApp", d: "Canal de entrada y salida para quien no abre la app" },
-  { href: "/panel", t: "Promotora", d: "Revisa alertas rojas, canaliza y valida prácticas" },
-  { href: "/panel/cooperativa", t: "Cooperativa y pagador", d: "Confirma relevos y administra la bolsa de horas" },
-];
-
-export default function Home() {
+export default function Inicio() {
+  const { usuario } = useData();
   return (
-    <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-12 px-4 py-10">
-      <section className="flex flex-wrap items-end justify-between gap-8">
-        <div className="flex max-w-[640px] flex-col gap-4">
-          <div className="flex items-center gap-3">
-            <Logo size={40} />
-            <h1 className="text-[44px] font-semibold leading-none tracking-[-0.03em]">Respira</h1>
-          </div>
-          <p className="text-2xl font-medium leading-snug tracking-tight">La red que cuida a quien cuida.</p>
-          <p className="text-[15px] leading-relaxed text-muted">
-            La familia registra el estado de la persona cuidada y lo que cada quien hace por ella. Ese registro reparte la carga, respalda la certificación de las cuidadoras, les abre financiamiento y activa una red de respiro con personas cercanas que ya saben cuidar.
+    <div className="min-h-screen">
+      <header className="mx-auto flex max-w-[1180px] items-center justify-between px-5 py-5">
+        <div className="flex items-center gap-2">
+          <Logo />
+          <span className="font-display text-xl font-bold tracking-tight">respira</span>
+        </div>
+        <div className="flex gap-2">
+          {usuario ? (
+            <Link href="/inicio" className={btnPrimary}>Ir a mi red</Link>
+          ) : (
+            <>
+              <Link href="/login" className={btnSecondary}>Iniciar sesión</Link>
+              <Link href="/registro" className={btnPrimary}>Crear cuenta</Link>
+            </>
+          )}
+        </div>
+      </header>
+
+      <main className="mx-auto flex max-w-[1180px] flex-col gap-14 px-5 pb-16 pt-10">
+        <section className="flex max-w-[720px] flex-col gap-5">
+          <p className="text-sm font-medium text-muted">Ciudad de México y área metropolitana</p>
+          <h1 className="text-[44px] font-semibold leading-[1.05] tracking-[-0.03em] md:text-[56px]">Se cae la abuela. ¿Quién empieza con los cuidados? La familia.</h1>
+          <p className="text-lg leading-relaxed text-ink-2">
+            Respira organiza a la familia para cuidar en red, avisa cuando la persona necesita más de lo que se puede atender en casa y convierte la experiencia de la cuidadora en certificaciones que abren empleo formal, seguro y pensión.
           </p>
           <div className="flex flex-wrap gap-2.5">
-            <Link href="/app/crear-red" className={btnPrimary}>
-              Empezar la demo
-            </Link>
-            <Link href="/tecnico" className={btnSecondary}>
-              Ver mapa técnico
-            </Link>
+            <Link href="/registro" className={`${btnPrimary} min-h-[50px] px-6 text-[15px]`}>Dar de alta a mi familia</Link>
+            <Link href="/login" className={`${btnSecondary} min-h-[50px] px-6 text-[15px]`}>Entrar a la familia de ejemplo</Link>
           </div>
-        </div>
-        <p className="max-w-[360px] rounded-2xl border border-line bg-white p-4 text-[13px] leading-relaxed text-muted">
-          Demo con datos sintéticos: Rosa y su familia son personas ficticias. Todo corre en tu navegador; usa <strong className="text-ink">Reiniciar</strong> para volver al inicio. Abre la app y el panel de la promotora en dos pestañas para ver la alerta llegar en vivo.
-        </p>
-      </section>
+        </section>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.06em] text-muted">El ciclo</h2>
-        <ol className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
-          {CICLO.map((c, i) => (
-            <li key={c.t} className={`flex flex-col gap-1 rounded-2xl border p-4 ${i === 4 ? "border-ink bg-ink text-white" : "border-line bg-white"}`}>
-              <span className={`text-xs ${i === 4 ? "text-[#c9c9c6]" : "text-muted"}`}>{i === 4 ? "5, y vuelve a empezar" : i + 1}</span>
-              <span className="text-[15px] font-semibold">{c.t}</span>
-              <span className={`text-[13px] ${i === 4 ? "text-[#d9d9d6]" : "text-muted"}`}>{c.d}</span>
-            </li>
+        <section className="grid gap-3 md:grid-cols-3">
+          {SECCIONES.map((s, i) => (
+            <div key={s.t} className="flex flex-col gap-2 rounded-2xl border border-line bg-white p-5">
+              <span className="text-xs font-semibold text-muted">{i + 1}</span>
+              <h2 className="text-lg font-semibold tracking-tight">{s.t}</h2>
+              <p className="text-sm leading-relaxed text-ink-2">{s.d}</p>
+            </div>
           ))}
-        </ol>
-      </section>
+        </section>
 
-      <section className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-        <div className="flex flex-col gap-3">
-          <h2 className="text-xl font-semibold tracking-tight">Guion para el jurado</h2>
-          <p className="text-sm text-muted">Ocho pasos, unos 5 minutos. Cada paso abre la pantalla que lo muestra.</p>
-          <GuionLista />
-        </div>
-        <div className="flex flex-col gap-3">
-          <h2 className="text-xl font-semibold tracking-tight">Entrar por rol</h2>
-          <div className="grid gap-2.5 sm:grid-cols-2">
-            {ROLES.map((r) => (
-              <Link key={r.href} href={r.href} className="flex flex-col gap-1.5 rounded-2xl border border-line bg-white p-5 transition hover:border-ink">
-                <span className="text-base font-semibold">{r.t}</span>
-                <span className="text-sm leading-snug text-muted">{r.d}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
+        <p className="text-xs text-muted">
+          Versión de demostración: la familia de ejemplo es ficticia y los datos se guardan en este navegador. Los centros del mapa vienen del DENUE del INEGI.{" "}
+          <Link href="/tecnico" className="underline">Ver mapa técnico</Link>
+        </p>
+      </main>
     </div>
   );
 }

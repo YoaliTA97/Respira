@@ -1,144 +1,197 @@
-// Modelo de datos de la demo. Es un subconjunto del modelo de la arquitectura
-// (CareCase, CareTeamMember, CareEvent, Alert, Shift, Credential...).
+// Modelo de dominio de Respira.
+// Usuario = perfil individual (como una cuenta de Notion): habilidades, roles, disponibilidad
+// y si ofrece ayuda en la red. Familia = espacio de trabajo privado al que se entra por
+// invitación (Membresia). La red de cuidado conecta perfiles que se ofrecen a otras familias.
+// En el MVP cada colección es una tabla de PostgreSQL (Supabase) con políticas por membresía.
 
-export type Tone = "dark" | "mid" | "light";
+export type Id = string;
+export type Tono = "t1" | "t2" | "t3" | "t4" | "t5";
 
-export type Member = {
-  id: string;
+export type Rango = { inicio: number; fin: number }; // horas 0-24
+export type Disponibilidad = Record<number, Rango[]>; // 0 = lunes
+
+// Roles e intereses: sugerencias del catálogo o lo que la persona escriba.
+export type RolInteres = string;
+
+export type Usuario = {
+  id: Id;
   nombre: string;
-  relacion: string;
-  ayuda: "A diario" | "Algunos días" | "Solo avisos";
-  estado: "Tú" | "Aceptó" | "Invitado";
-  genero: "mujer" | "hombre";
-  tono: Tone;
-  horasBaseSemana: number;
+  telefono: string;
+  genero: "mujer" | "hombre" | "otro";
+  alcaldia: string;
+  ubicacion: { lat: number; lng: number }; // aproximada, para la búsqueda por radio
+  bio: string;
+  tono: Tono;
+  roles: RolInteres[];
+  experiencia?: string[]; // habilidades que la persona declara (sin verificar); las verificadas salen de la capacitación
+  disponibilidad: Disponibilidad;
+  ofreceAyuda: { activo: boolean; radioKm: number; modalidades: ("intercambio de horas" | "pago" | "programa de apoyo")[]; tarifaHora: number };
+  saldoHoras: number; // banco de horas: + horas que le deben
+  creadoEn: string;
 };
 
-export type Recipient = {
+export type RolFamilia = "coordinacion" | "cuidado" | "apoyo" | "avisos";
+
+export const ROL_TEXTO: Record<RolFamilia, { t: string; d: string }> = {
+  coordinacion: { t: "Coordinación", d: "Administra el espacio, invita integrantes y asigna relevos" },
+  cuidado: { t: "Cuidado", d: "Cubre relevos, registra signos y medicación" },
+  apoyo: { t: "Apoyo", d: "Cubre relevos ocasionales e intercambios" },
+  avisos: { t: "Solo avisos", d: "Recibe alertas y ve el estado, sin registrar" },
+};
+
+export type Familia = {
+  id: Id;
   nombre: string;
-  relacion: string;
-  condiciones: string[];
-  municipio: string;
+  alcaldia: string;
+  hogar: { lat: number; lng: number; referencia: string };
+  creadaPor: Id;
+  creadaEn: string;
+  consentimiento: { registro: boolean; alertasWhatsApp: boolean; indicadores: boolean; fecha: string };
 };
 
-export type Consent = {
-  registro: boolean;
-  promotora: boolean;
-  indicadores: boolean;
+export type Membresia = {
+  id: Id;
+  familiaId: Id;
+  usuarioId: Id;
+  rol: RolFamilia;
+  parentesco: string;
+  principal: boolean; // recibe alertas médicas por WhatsApp
+  estado: "activa" | "invitada";
+  desde: string;
 };
 
-// Niveles de verificación de un evento (sección "Tracking de acciones")
-// V0 autorreportado · V1 con evidencia · V2 confirmado por otra persona · V3 validado por promotora
-export type Verificacion = "V0" | "V1" | "V2" | "V3";
+// Condiciones con protocolo en Respira (signos, reglas, tutoriales y prevención).
+export type CondicionId = "diabetes" | "caida" | "hipertension" | "demencia" | "movilidad";
+export type SignoId = "fc" | "fr" | "pa" | "glucosa" | "temperatura" | "spo2" | "dolor" | "conciencia";
 
-export type Senal = "confusion" | "poca_agua" | "caida" | "dolor" | "tranquila" | "cansada";
-
-export type CareEvent = {
-  id: string;
-  casoId: string;
-  actorId: string;
-  actorNombre: string;
-  tipo: "observacion" | "accion";
-  categoria: string;
-  competencia?: SkillId;
-  detalle: string;
-  hora: string;
-  canal: "app" | "whatsapp";
-  evidencia?: "foto" | "audio";
-  confirmadoPor?: string;
-  verificacion: Verificacion;
-  senales: Senal[];
-  duracionMin: number;
-  transcripcion?: string;
+export type Umbrales = {
+  fc: { min: number; max: number };
+  fr: { min: number; max: number };
+  paSist: { min: number; max: number };
+  glucosa: { min: number; max: number };
+  temperatura: { max: number };
 };
 
-export type Nivel = "rojo" | "amarillo" | "verde";
+export type Paciente = {
+  id: Id;
+  familiaId: Id;
+  nombre: string;
+  edad: number;
+  sexo: "mujer" | "hombre";
+  condiciones: string[]; // id del catálogo (CondicionId) o el nombre que da de alta la familia
+  alergias?: string[];
+  evento: { tipo: "caida"; fecha: string; descripcion: string; lesion: string } | null;
+  movilidad: "independiente" | "con apoyo" | "en cama";
+  signos: SignoId[];
+  umbrales: Umbrales;
+  notas: string;
+};
 
-export type Alert = {
-  id: string;
-  casoId: string;
-  persona: string;
-  cuidaA: string;
-  eventoId?: string;
+export type Medicamento = { id: Id; familiaId: Id; nombre: string; dosis: string; horarios: string[]; indicaciones: string };
+
+export type Toma = { id: Id; medicamentoId: Id; fecha: string; horario: string; estado: "dada" | "omitida"; porUsuarioId: Id; registradaEn: string };
+
+export type Nivel = "verde" | "amarillo" | "rojo";
+
+export type LecturaSignos = {
+  id: Id;
+  familiaId: Id;
+  fechaHora: string;
+  porUsuarioId: Id;
+  fc?: number;
+  fr?: number;
+  paSist?: number;
+  paDiast?: number;
+  glucosa?: number;
+  temperatura?: number;
+  spo2?: number;
+  dolor?: number;
+  conciencia?: "alerta" | "confundida" | "no responde";
+  senales: string[];
+  origen: "nota de voz" | "formulario";
   nivel: Nivel;
-  resumen: string;
-  motivo: string;
-  reglas: string[];
-  senalesIA: string[];
-  transcripcion?: string;
-  hora: string;
-  creadaMs: number;
-  estado: "pendiente" | "confirmada" | "reclasificada";
-  revisadaMs?: number;
-  destino?: string;
-};
-
-export type Day = "Lun" | "Mar" | "Mié" | "Jue" | "Vie" | "Sáb" | "Dom";
-export type Slot = "Mañana" | "Tarde" | "Noche";
-export type ShiftGrid = Record<Day, Record<Slot, string | null>>;
-
-export type Helper = {
-  id: string;
-  nombre: string;
-  iniciales: string;
-  descripcion: string;
-  nivel: "C2" | "C3";
-  distanciaKm: number;
-  habilidades: string[];
-  disponible: boolean;
 };
 
 export type Relevo = {
-  id: string;
-  casoId: string;
-  familia: string;
-  dia: Day;
-  slot: Slot;
-  horario: string;
-  helperId?: string;
-  helperNombre?: string;
-  pagador: string;
-  estado: "solicitado" | "confirmado" | "terminado";
+  id: Id;
+  familiaId: Id;
+  fecha: string; // YYYY-MM-DD
+  inicio: number;
+  horas: number; // 4, 6, 8 o personalizado
+  asignadoA: Id | null; // usuario
+  origen: "familia" | "red";
+  recibidoEn?: string;
 };
 
-export type SkillId = "medicamentos" | "alimentacion" | "movilizacion" | "primeros_auxilios";
-
-export type Skill = {
-  id: SkillId;
-  nombre: string;
-  microcurso: boolean;
-  practicasValidadas: number;
-  certificada: boolean;
+export type Intercambio = {
+  id: Id;
+  familiaId: Id;
+  relevoId: Id;
+  deUsuarioId: Id;
+  aUsuarioId: Id;
+  tipo: "horas" | "monetario";
+  monto: number;
+  estado: "pendiente" | "aceptado" | "rechazado";
+  creadoEn: string;
 };
 
-export type ChatMsg = {
-  id: string;
-  de: "bot" | "yo";
-  tipo: "texto" | "audio" | "resumen" | "semaforo";
-  texto?: string;
-  hora: string;
-  opciones?: string[];
-  alertaId?: string;
+export type SolicitudRed = {
+  id: Id;
+  familiaId: Id;
+  relevoId: Id;
+  usuarioId: Id; // perfil de la red que recibe la solicitud
+  pago: "intercambio de horas" | "pago" | "programa de apoyo";
+  monto: number;
+  estado: "enviada" | "aceptada" | "rechazada";
+  creadaEn: string;
 };
 
-export type Toast = { id: number; texto: string } | null;
+export type Mensaje = {
+  id: Id;
+  familiaId: Id;
+  de: Id | "asistente";
+  texto: string;
+  fechaHora: string;
+  tipo: "texto" | "nota de voz" | "respuesta" | "sistema";
+  nivel?: Nivel;
+  hallazgos?: { etiqueta: string; valor: string; estado: "normal" | "fuera de rango" }[];
+  acciones?: ("911" | "centros" | "relevo" | "tutorial")[];
+  tutorialId?: string;
+  audioUrl?: string;
+  fuente?: "reglas" | "reglas + Claude";
+};
 
-export type DemoState = {
+export type Alerta = {
+  id: Id;
+  familiaId: Id;
+  fechaHora: string;
+  nivel: Nivel;
+  titulo: string;
+  motivo: string;
+  trifecta: boolean;
+  estado: "activa" | "atendida";
+  centroElegido?: string;
+  whatsapp?: { enviadoA: string[]; modo: "real" | "simulado"; texto: string };
+};
+
+export type ProgresoTutorial = { tutorialId: string; usuarioId: Id; completado: boolean; fecha: string; practicas: number };
+
+export type Certificacion = { id: string; usuarioId: Id; estado: "agendada" | "certificada"; cita?: string; fecha?: string };
+
+export type DB = {
   version: number;
-  casoId: string;
-  recipient: Recipient;
-  members: Member[];
-  consent: Consent;
-  events: CareEvent[];
-  alerts: Alert[];
-  shifts: ShiftGrid;
-  helpers: Helper[];
+  usuarios: Usuario[];
+  familias: Familia[];
+  membresias: Membresia[];
+  pacientes: Paciente[];
+  medicamentos: Medicamento[];
+  tomas: Toma[];
+  lecturas: LecturaSignos[];
   relevos: Relevo[];
-  skills: Skill[];
-  chat: ChatMsg[];
-  chatFase: "inicio" | "audio" | "confirmado";
-  ofrecerAcompanamiento: boolean;
-  bolsa: { pagador: string; totalHoras: number; usadasHoras: number };
-  base: { horasRegistradas: number; horasVerificadas: number; respiroHoras: number; microcursos: number };
-  techMode: boolean;
+  intercambios: Intercambio[];
+  solicitudes: SolicitudRed[];
+  mensajes: Mensaje[];
+  alertas: Alerta[];
+  progreso: ProgresoTutorial[];
+  certificaciones: Certificacion[];
 };
