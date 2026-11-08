@@ -8,6 +8,7 @@ import { Estrellas } from "./Graficas";
 import { useData } from "@/lib/db";
 import { fechaISO } from "@/lib/seed";
 import { FichaEmergencia } from "./FichaEmergencia";
+import { useDemoEvento } from "@/lib/demo";
 import { Icono } from "./Iconos";
 import { Avatar, btnDanger, btnSecondary } from "./ui";
 
@@ -23,6 +24,17 @@ export function AlertaGrave() {
       return JSON.parse(sessionStorage.getItem(LS_VISTAS) ?? "[]");
     } catch {
       return [];
+    }
+  });
+  useDemoEvento((ev) => {
+    if (ev !== "cerrar-alerta" || !familia) return;
+    const ids = db.alertas.filter((x) => x.familiaId === familia.id && x.estado === "activa" && x.nivel === "rojo").map((x) => x.id);
+    const v = Array.from(new Set([...vistas, ...ids]));
+    setVistas(v);
+    try {
+      sessionStorage.setItem(LS_VISTAS, JSON.stringify(v));
+    } catch {
+      /* ignorar */
     }
   });
   if (!usuario || !familia || !paciente) return null;

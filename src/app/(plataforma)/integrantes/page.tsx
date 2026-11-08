@@ -6,6 +6,7 @@ import { DIAS } from "@/lib/catalogos";
 import { fechaISO } from "@/lib/seed";
 import { calificacion, habilidades, horasCuidado, horasDisponibles, km, perfilesRed, relevoActual } from "@/lib/calculos";
 import { Estrellas } from "@/components/Graficas";
+import { useDemoEvento } from "@/lib/demo";
 import { ROL_TEXTO, type RolFamilia } from "@/lib/types";
 import Link from "next/link";
 import { InvitarPersona } from "@/components/InvitarPersona";
@@ -22,6 +23,11 @@ function Integrantes() {
   const [sel, setSel] = useState(usuario?.id ?? "");
   const [proyectar, setProyectar] = useState(false);
   const [etapa, setEtapa] = useState(4);
+  const crecer = () => {
+    setEtapa(1);
+    [2, 3, 4].forEach((n, k) => setTimeout(() => setEtapa(n), 1600 * (k + 1)));
+  };
+  useDemoEvento((ev) => ev === "mapa-crece" && crecer());
   if (!familia || !usuario) return null;
 
   const todos = db.membresias.filter((m) => m.familiaId === familia.id).map((m) => ({ m, u: db.usuarios.find((x) => x.id === m.usuarioId)! })).filter((x) => x.u);
@@ -66,10 +72,7 @@ function Integrantes() {
               <button
                 type="button"
                 className="text-xs font-semibold text-primario underline"
-                onClick={() => {
-                  setEtapa(1);
-                  [2, 3, 4].forEach((n, k) => setTimeout(() => setEtapa(n), 1600 * (k + 1)));
-                }}
+                onClick={crecer}
               >
                 Ver cómo crece la red
               </button>

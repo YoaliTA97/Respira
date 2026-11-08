@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useData } from "@/lib/db";
+import { emitirDemo } from "@/lib/demo";
 import { CLAVE_DEMO } from "@/lib/seed";
 import { Logo } from "@/components/Logo";
 import { Avatar, btnPrimary, btnSecondary } from "@/components/ui";
@@ -40,6 +41,7 @@ export default function Guion() {
           <p className="text-sm text-muted">Bloques 3 a 6 del speech · caso Newman con datos de ejemplo ya cargados · ten listo el video de respaldo de 60 s del bloque 3</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <button type="button" className={btnPrimary} onClick={() => emitirDemo("iniciar")}>▶ Reproducir demo automática</button>
           <button type="button" className={btnSecondary} onClick={reiniciarDemo}>Reiniciar caso de ejemplo</button>
           <button type="button" className={btnSecondary} onClick={simularSeisMeses}>Seis meses después</button>
         </div>

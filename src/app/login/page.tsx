@@ -9,6 +9,7 @@ import { CLAVE_DEMO, FAMILIA_DEMO } from "@/lib/seed";
 import { ROL_TEXTO } from "@/lib/types";
 import { telefonoLimpio } from "@/lib/catalogos";
 import { problemaClave } from "@/lib/clave";
+import { emitirDemo } from "@/lib/demo";
 import { Logo } from "@/components/Logo";
 import { TechTag } from "@/components/TechTag";
 import { Avatar, btnPrimary, btnSecondary, input, label } from "@/components/ui";
@@ -191,6 +192,7 @@ export default function Login() {
           )}
           <p className="mt-1 text-xs leading-relaxed text-muted">Lo que registras se guarda en este navegador: puedes cerrar sesión, recargar o cerrar la pestaña y tus datos siguen aquí.</p>
           <div className="flex flex-wrap gap-3 text-xs">
+            <button type="button" onClick={() => emitirDemo("iniciar")} className="font-semibold text-primario underline">▶ Demo automática</button>
             <Link href="/guion" className="font-semibold text-ink underline">Guion de presentación (3 min)</Link>
             <button type="button" onClick={reiniciarDemo} className="text-muted underline">Reiniciar caso de ejemplo</button>
             <button type="button" onClick={() => { if (window.confirm("Se borra todo lo creado en este navegador y queda solo el caso de ejemplo. ¿Continuar?")) borrarTodo(); }} className="text-muted underline">Dejar solo el caso de ejemplo</button>

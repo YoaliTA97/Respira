@@ -7,6 +7,8 @@ import { SIGNOS } from "@/lib/catalogos";
 import type { Medicion } from "@/lib/reglas";
 import type { Mensaje } from "@/lib/types";
 import { NotaVoz } from "@/components/NotaVoz";
+import { NotaSimulada } from "@/components/NotaSimulada";
+import { useDemoEvento } from "@/lib/demo";
 import { RequiereFamilia } from "@/components/RequiereFamilia";
 import { TechTag } from "@/components/TechTag";
 import { Avatar, Modal, NivelPill, Segmentado, btnDanger, btnPrimary, btnSecondary, input, label } from "@/components/ui";
@@ -80,7 +82,11 @@ function Chat() {
   const [texto, setTexto] = useState("");
   const [grabando, setGrabando] = useState(false);
   const [form, setForm] = useState(false);
-  const [confirmar, setConfirmar] = useState<string | null>(null);
+  const [simulada, setSimulada] = useState<{ texto: string; auto: boolean } | null>(null);
+  useDemoEvento((ev) => {
+    if (ev === "nota-1") setSimulada({ texto: EJEMPLOS[1].v, auto: true });
+    if (ev === "nota-2") setSimulada({ texto: EJEMPLOS[2].v, auto: true });
+  });
   const [m, setM] = useState<Record<string, string>>({});
   const fin = useRef<HTMLDivElement | null>(null);
   const mensajes = db.mensajes.filter((x) => x.familiaId === familia?.id);
@@ -165,7 +171,7 @@ function Chat() {
                 <div className="flex flex-wrap gap-1.5">
                   <span className="text-xs text-muted">Nota de voz de ejemplo:</span>
                   {EJEMPLOS.map((e) => (
-                    <button key={e.t} type="button" disabled={procesando} onClick={() => setConfirmar(e.v)} className="rounded-full border border-line bg-white px-2.5 py-1 text-xs hover:border-primario">{e.t}</button>
+                    <button key={e.t} type="button" disabled={procesando} onClick={() => setSimulada({ texto: e.v, auto: false })} className="rounded-full border border-line bg-white px-2.5 py-1 text-xs hover:border-primario">{e.t}</button>
                   ))}
                 </div>
               )}
@@ -189,6 +195,7 @@ function Chat() {
                 />
                 <button type="button" onClick={() => setForm(true)} className={btnSecondary} title="Registrar signos con formulario">Signos</button>
                 <Link href="/valoracion" className={`${btnSecondary} hidden sm:inline-flex`} title="Valoración completa en checklist">Checklist</Link>
+                <button type="button" onClick={() => setSimulada({ texto: EJEMPLOS[1].v, auto: false })} className={`${btnSecondary} hidden sm:inline-flex`} title="Nota de voz simulada: no necesita micrófono ni internet">Simular nota</button>
                 <button type="button" onClick={() => setGrabando(true)} aria-label="Grabar nota de voz" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primario text-white">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
                 </button>
@@ -199,20 +206,18 @@ function Chat() {
         )}
       </div>
 
-      <Modal abierto={confirmar !== null} onCerrar={() => setConfirmar(null)} titulo="Nota de voz transcrita">
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-2 rounded-xl bg-canvas px-3 py-2 text-sm text-muted">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
-            Nota de voz de ejemplo · Respira transcribió:
-          </div>
-          <label htmlFor="conf-texto" className="text-xs font-medium text-muted">Revisa y confirma lo que se entendió (una persona confirma cada registro)</label>
-          <textarea id="conf-texto" rows={3} className="resize-none rounded-xl border border-line p-3 text-[15px] outline-none focus:border-primario" value={confirmar ?? ""} onChange={(e) => setConfirmar(e.target.value)} />
-          <div className="flex gap-2">
-            <button type="button" className={btnPrimary} disabled={!confirmar?.trim()} onClick={() => { const t = confirmar ?? ""; setConfirmar(null); void reportar(t, { notaVoz: true }); }}>Confirmar y enviar</button>
-            <button type="button" className={btnSecondary} onClick={() => setConfirmar(null)}>Cancelar</button>
-          </div>
-        </div>
-      </Modal>
+      {simulada && (
+        <NotaSimulada
+          key={simulada.texto}
+          texto={simulada.texto}
+          auto={simulada.auto}
+          onCancelar={() => setSimulada(null)}
+          onConfirmar={(t) => {
+            setSimulada(null);
+            void reportar(t, { notaVoz: true });
+          }}
+        />
+      )}
 
       <Modal abierto={form} onCerrar={() => setForm(false)} titulo={`Signos de ${paciente.nombre}`}>
         <div className="grid grid-cols-2 gap-3">

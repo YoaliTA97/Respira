@@ -6,6 +6,7 @@ import { useData } from "@/lib/db";
 import { TUTORIALES } from "@/lib/catalogos";
 import { cvCuidado, estadoCertificaciones, ingresoCuidado } from "@/lib/calculos";
 import { TechTag } from "@/components/TechTag";
+import { useDemoEvento } from "@/lib/demo";
 import { Avatar, btnPrimary, btnSecondary } from "@/components/ui";
 
 // Pasaporte de Cuidado: cada hora que se cuida suma hasta la certificación oficial del CONOCER.
@@ -27,6 +28,7 @@ export default function Pasaporte() {
     });
     return () => cancelAnimationFrame(frame);
   }, [vuelta]);
+  useDemoEvento((ev) => ev === "pasaporte-llenar" && setVuelta((v) => v + 1));
   if (!usuario) return null;
 
   const cert = estadoCertificaciones(db, usuario.id, ahora).find((c) => c.def.id === "ec0669")!;

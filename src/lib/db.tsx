@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { SIDECU, UMBRALES_BASE, nombreEquipo } from "./catalogos";
 import { familiasDe, integrantes as integrantesDe, planInicialRelevos, relevoActual, type Integrante } from "./calculos";
-import { evaluar, extraerMedicion, respuestaPorReglas, type Evaluacion, type Medicion, type Senal } from "./reglas";
+import { SENAL_TEXTO, evaluar, extraerMedicion, respuestaPorReglas, type Evaluacion, type Medicion, type Senal } from "./reglas";
 import { CODIGO_DEMO, DB_VERSION, DEMO_ANTERIOR, FAMILIA_DEMO, crearSeed, fechaISO } from "./seed";
 import { crearHash, verificarClave } from "./clave";
 import type {
@@ -401,7 +401,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (ev.nivel === "amarillo" && previa && previa.nivel !== "verde" && minDesde <= 90) {
       ev = {
         ...ev, nivel: "rojo", titulo: "Alerta grave: se repite o empeora al volver a medir",
-        motivo: `${ev.motivo} En la medición anterior ya había que volver a revisar. Lo que necesita excede lo que se puede atender en casa.`,
+        motivo: `Al volver a medir sigue fuera del rango que indicó su médico${ev.hallazgos.some((h) => h.estado !== "normal") ? ` (${ev.hallazgos.filter((h) => h.estado !== "normal").map((h) => `${h.etiqueta.toLowerCase()} ${h.valor}`).join(", ")})` : ""}${ev.senales.length ? ` y hay señales de alarma: ${ev.senales.map((x) => SENAL_TEXTO[x].toLowerCase()).join(", ")}` : ""}. Lo que necesita excede lo que se puede atender en casa.`,
         acciones: Array.from(new Set([...ev.acciones, "911" as const, "centros" as const])), notificarFamilia: true,
       };
       respuesta = respuestaPorReglas(ev, paciente.nombre, paciente.condiciones, revisarEn);

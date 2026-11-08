@@ -82,3 +82,12 @@ h3 {
   from { transform: rotate(-8deg) scale(1.7); opacity: 0; }
   to { transform: rotate(-8deg) scale(1); opacity: 1; }
 }
+
+@keyframes onda {
+  from { transform: scaleY(0.35); }
+  to { transform: scaleY(1); }
+}
+@keyframes avance {
+  from { width: 0%; }
+  to { width: 100%; }
+}

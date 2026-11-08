@@ -82,6 +82,11 @@ export const TECH = {
     servicio: "Supabase Realtime", integracion: "WhatsApp como canal de entrada y salida",
     ahora: "Operando", detalleAhora: "Compartido entre pestañas del mismo navegador; entre teléfonos requiere el backend.",
   },
+  "demo-auto": {
+    titulo: "Demo automática y nota de voz simulada", seccion: "Presentación", modulos: "—", datos: "Pasos del speech",
+    servicio: "Reproductor que cambia de persona y pantalla y ejecuta las acciones", integracion: "Voz del navegador (speechSynthesis), sin API",
+    ahora: "Operando", detalleAhora: "La nota simulada no usa micrófono, dictado ni internet; la respuesta sale de las reglas (Claude solo cambia la redacción si hay API key).",
+  },
   "nota-voz": {
     titulo: "Nota de voz al recibir a la persona", seccion: "Red de cuidado", modulos: "M7 Agentes", datos: "Audio, transcripción",
     servicio: "Grabación en el navegador + dictado", integracion: "Web Speech API (Chrome); faster-whisper en el MVP",

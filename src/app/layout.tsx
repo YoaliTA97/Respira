@@ -3,6 +3,7 @@ import { Atkinson_Hyperlegible, Outfit } from "next/font/google";
 import "./globals.css";
 import { DataProvider } from "@/lib/db";
 import { Aviso } from "@/components/ui";
+import { DemoAuto } from "@/components/DemoAuto";
 
 // Outfit para títulos y cifras; Atkinson Hyperlegible (diseñada para baja visión) para leer.
 const outfit = Outfit({ variable: "--font-outfit", subsets: ["latin"], weight: ["500", "600", "700"] });
@@ -22,6 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <DataProvider>
           {children}
           <Aviso />
+          <DemoAuto />
         </DataProvider>
       </body>
     </html>
